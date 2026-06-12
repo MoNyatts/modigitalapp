@@ -47,6 +47,9 @@ data/
 *.db
 .env
 
+# local dev-server and emulator logs
+logs/
+
 # fastlane
 #
 # It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the

@@ -13,4 +13,4 @@
  * on both platforms require https:// unless you explicitly opt out in the
  * native configuration — use a proper HTTPS URL for production.
  */
-export const SERVER_URL = 'http://localhost:3000';
+export const SERVER_URL = 'http://10.0.2.2:3000'; // Android emulator alias for this PC; see options above
