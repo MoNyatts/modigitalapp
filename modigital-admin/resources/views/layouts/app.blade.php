@@ -1,6 +1,8 @@
 @php
     $navItems = [
         ['label' => 'Dashboard', 'route' => 'dashboard', 'match' => 'dashboard', 'icon' => 'bi-speedometer2'],
+        ['label' => 'Admissions', 'route' => 'admissions.index', 'match' => 'admissions.*', 'icon' => 'bi-person-check'],
+        ['label' => 'Upcoming', 'route' => 'upcoming-events.index', 'match' => 'upcoming-events.*', 'icon' => 'bi-calendar-week'],
         ['label' => 'Events', 'route' => 'events.index', 'match' => ['events.*', 'qrcodes.*'], 'icon' => 'bi-calendar-event'],
         ['label' => 'Users', 'route' => 'users.index', 'match' => 'users.*', 'icon' => 'bi-people'],
         ['label' => 'Reports', 'route' => 'reports.index', 'match' => 'reports.*', 'icon' => 'bi-bar-chart'],

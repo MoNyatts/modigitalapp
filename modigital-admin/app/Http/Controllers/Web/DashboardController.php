@@ -33,16 +33,48 @@ class DashboardController extends Controller
 
         return view('dashboard', [
             'eventCount' => Event::count(),
-            'upcomingEvents' => Event::whereDate('start_date', '>=', $today)->orderBy('start_date')->limit(5)->get(),
             'guestCount' => QrCode::count(),
             'userCount' => User::count(),
             'admissionsToday' => (int) Scan::where('created_at', '>=', $today)->sum('admission_count'),
             'admissionsTotal' => (int) Scan::sum('admission_count'),
             'rejectionsToday' => RejectedScan::where('created_at', '>=', $today)->count(),
-            'recentScans' => Scan::with(['qrCode:id,code,guest_name', 'activity:id,name,event_id', 'activity.event:id,name', 'scanner:id,name'])
-                ->latest()->limit(10)->get(),
             'admissionsByDay' => $admissionsByDay,
             'eventPerformance' => $eventPerformance,
+        ]);
+    }
+
+    public function admissions()
+    {
+        $today = now()->startOfDay();
+        $recentScans = Scan::with([
+            'qrCode:id,code,guest_name,type',
+            'activity:id,name,event_id',
+            'activity.event:id,name,start_date',
+            'scanner:id,name,email',
+        ])->latest()->paginate(25);
+
+        return view('dashboard.admissions', [
+            'recentScans' => $recentScans,
+            'admissionsToday' => (int) Scan::where('created_at', '>=', $today)->sum('admission_count'),
+            'admissionsTotal' => (int) Scan::sum('admission_count'),
+            'scanCountToday' => Scan::where('created_at', '>=', $today)->count(),
+            'scannerCountToday' => Scan::where('created_at', '>=', $today)->distinct('scanned_by')->count('scanned_by'),
+        ]);
+    }
+
+    public function upcomingEvents()
+    {
+        $today = now()->startOfDay();
+        $events = Event::withCount(['activities', 'qrCodes', 'assignedUsers'])
+            ->whereDate('start_date', '>=', $today)
+            ->orderBy('start_date')
+            ->paginate(20);
+
+        return view('dashboard.upcoming-events', [
+            'events' => $events,
+            'eventsThisWeek' => Event::whereBetween('start_date', [$today, now()->addDays(7)->endOfDay()])->count(),
+            'eventsThisMonth' => Event::whereBetween('start_date', [$today, now()->endOfMonth()])->count(),
+            'guestCapacity' => (int) Event::whereDate('start_date', '>=', $today)->sum('invited_guests'),
         ]);
     }
 }

@@ -15,6 +15,8 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/admissions', [DashboardController::class, 'admissions'])->name('admissions.index');
+    Route::get('/upcoming-events', [DashboardController::class, 'upcomingEvents'])->name('upcoming-events.index');
 
     Route::resource('events', EventController::class);
     Route::post('events/{event}/staff', [EventController::class, 'assignStaff'])->name('events.staff');

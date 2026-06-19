@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../api.dart';
 import '../main.dart';
 import '../models.dart';
+
+const _scanFeedbackChannel = MethodChannel('modigital_scanner/scan_feedback');
 
 /// Scan QR codes for one event activity, with a live multi-device feed.
 class ScannerScreen extends StatefulWidget {
@@ -79,6 +82,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       );
     }
 
+    await _playScanFeedback(result.success);
     await _loadFeed();
     if (!mounted) return;
 
@@ -88,6 +92,28 @@ class _ScannerScreenState extends State<ScannerScreen> {
     );
 
     if (mounted) setState(() => _processing = false);
+  }
+
+  Future<void> _playScanFeedback(bool valid) async {
+    try {
+      await _scanFeedbackChannel.invokeMethod<void>('play', {'valid': valid});
+    } catch (_) {
+      await SystemSound.play(SystemSoundType.click);
+      if (!valid) {
+        await Future<void>.delayed(const Duration(milliseconds: 90));
+        await SystemSound.play(SystemSoundType.click);
+      }
+    }
+
+    try {
+      if (valid) {
+        await HapticFeedback.mediumImpact();
+      } else {
+        await HapticFeedback.heavyImpact();
+      }
+    } catch (_) {
+      // Some devices disable haptics; sound feedback is enough.
+    }
   }
 
   Future<void> _manualEntry() async {

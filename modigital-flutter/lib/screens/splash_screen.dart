@@ -40,10 +40,32 @@ class _SplashScreenState extends State<SplashScreen> {
         children: [
           DecoratedBox(
             decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/splash-background.jpg'),
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              ),
+            ),
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [brandNavy, const Color(0xFF101827), brandDarkRed],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xAA020617),
+                  Color(0x88111827),
+                  Color(0xEE020617),
+                ],
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.35, 0.1),
+                radius: 1.1,
+                colors: [brandRed.withValues(alpha: 0.20), Colors.transparent],
               ),
             ),
           ),
@@ -55,11 +77,41 @@ class _SplashScreenState extends State<SplashScreen> {
                 children: [
                   const _BrandMark(size: 64),
                   const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: const Text(
+                      'EVENT ACCESS',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   Text(
                     "Mo' Digital Events",
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.36),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 8),
