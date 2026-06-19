@@ -23,12 +23,30 @@ void main() {
       'name': 'Demo Gala',
       'location': 'Test Hall',
       'start_date': '2026-06-12',
+      'qr_codes_count': 80,
+      'total_admissions': 42,
+      'total_scans': 38,
+      'rejected_scans': 3,
       'activities': [
-        {'id': 1, 'name': 'Main Entrance', 'day': null, 'start_time': null, 'end_time': null, 'is_active': true},
+        {
+          'id': 1,
+          'name': 'Main Entrance',
+          'day': null,
+          'start_time': null,
+          'end_time': null,
+          'is_active': true,
+          'total_admissions': 42,
+          'total_scans': 38,
+          'unique_codes': 36,
+          'rejected_scans': 3,
+        },
       ],
     });
 
     expect(event.activities, hasLength(1));
     expect(event.activities.first.name, 'Main Entrance');
+    expect(event.totalAdmissions, 42);
+    expect(event.qrCodesCount, 80);
+    expect(event.activities.first.rejectedScans, 3);
   });
 }

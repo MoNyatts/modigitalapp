@@ -1,73 +1,127 @@
+@php
+    $navItems = [
+        ['label' => 'Dashboard', 'route' => 'dashboard', 'match' => 'dashboard', 'icon' => 'bi-speedometer2'],
+        ['label' => 'Events', 'route' => 'events.index', 'match' => ['events.*', 'qrcodes.*'], 'icon' => 'bi-calendar-event'],
+        ['label' => 'Users', 'route' => 'users.index', 'match' => 'users.*', 'icon' => 'bi-people'],
+        ['label' => 'Reports', 'route' => 'reports.index', 'match' => 'reports.*', 'icon' => 'bi-bar-chart'],
+    ];
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Dashboard') — Mo' Digital Events</title>
+    <title>@yield('title', 'Dashboard') - Mo' Digital Events</title>
+    @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @else
+        <script src="https://cdn.tailwindcss.com"></script>
+    @endif
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
-        :root { --brand: #EF4444; --brand-dark: #DC2626; --navy: #3B4E6C; }
-        body { background: #F9FAFB; }
-        .sidebar { width: 240px; min-height: 100vh; background: var(--navy); }
-        .sidebar .nav-link { color: rgba(255,255,255,.8); border-radius: .5rem; margin: .1rem .5rem; }
-        .sidebar .nav-link:hover { color: #fff; background: rgba(255,255,255,.08); }
-        .sidebar .nav-link.active { color: #fff; background: var(--brand); }
-        .brand-badge { width: 38px; height: 38px; border-radius: 10px; background: var(--brand); color: #fff;
-                       display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+        :root { --brand: #EF4444; --brand-dark: #B91C1C; --navy: #3B4E6C; }
         .btn-brand { background: var(--brand); border-color: var(--brand); color: #fff; }
         .btn-brand:hover { background: var(--brand-dark); border-color: var(--brand-dark); color: #fff; }
-        .stat-card .icon { font-size: 1.6rem; width: 52px; height: 52px; border-radius: 12px;
-                           display: inline-flex; align-items: center; justify-content: center; }
     </style>
 </head>
-<body>
-<div class="d-flex">
-    <nav class="sidebar d-flex flex-column p-2">
-        <div class="d-flex align-items-center gap-2 text-white p-3">
-            <span class="brand-badge">MD</span>
-            <div>
-                <div class="fw-bold lh-1">Mo' Digital</div>
-                <small class="opacity-75">Events Admin</small>
-            </div>
+<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+<div class="min-h-screen lg:flex">
+    <aside class="hidden w-72 shrink-0 bg-slate-950 text-white lg:flex lg:flex-col">
+        <div class="p-6">
+            <a href="{{ route('dashboard') }}" class="flex items-center gap-3 text-white no-underline">
+                <span class="grid h-12 w-12 place-items-center rounded-lg bg-red-500 text-lg font-black shadow-lg shadow-red-950/30">MD</span>
+                <span>
+                    <span class="block text-lg font-black leading-tight">Mo' Digital</span>
+                    <span class="text-sm font-semibold text-slate-400">Events Admin</span>
+                </span>
+            </a>
         </div>
-        <ul class="nav nav-pills flex-column mb-auto">
-            <li><a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
-            <li><a href="{{ route('events.index') }}" class="nav-link {{ request()->routeIs('events.*', 'qrcodes.*') ? 'active' : '' }}"><i class="bi bi-calendar-event me-2"></i>Events</a></li>
-            <li><a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}"><i class="bi bi-people me-2"></i>Users</a></li>
-            <li><a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}"><i class="bi bi-bar-chart me-2"></i>Reports</a></li>
-        </ul>
-        <div class="p-3 text-white-50 small">
-            <div class="mb-2"><i class="bi bi-person-circle me-1"></i>{{ auth()->user()->name }}</div>
+
+        <nav class="flex-1 space-y-1 px-3">
+            @foreach ($navItems as $item)
+                @php $active = request()->routeIs(...(array) $item['match']); @endphp
+                <a href="{{ route($item['route']) }}"
+                   class="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-extrabold no-underline transition {{ $active ? 'bg-red-500 text-white shadow-lg shadow-red-950/20' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">
+                    <i class="bi {{ $item['icon'] }} text-base"></i>
+                    <span>{{ $item['label'] }}</span>
+                </a>
+            @endforeach
+        </nav>
+
+        <div class="m-4 rounded-lg border border-white/10 bg-white/5 p-4">
+            <div class="mb-3 flex items-center gap-3">
+                <span class="grid h-10 w-10 place-items-center rounded-lg bg-white/10 font-black">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
+                <div class="min-w-0">
+                    <div class="truncate text-sm font-extrabold">{{ auth()->user()->name }}</div>
+                    <div class="truncate text-xs text-slate-400">{{ auth()->user()->email }}</div>
+                </div>
+            </div>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button class="btn btn-sm btn-outline-light w-100"><i class="bi bi-box-arrow-right me-1"></i>Sign out</button>
+                <button class="flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/10">
+                    <i class="bi bi-box-arrow-right"></i> Sign out
+                </button>
             </form>
         </div>
-    </nav>
+    </aside>
 
-    <main class="flex-grow-1 p-4">
-        @if (session('status'))
-            <div class="alert alert-success alert-dismissible fade show">{{ session('status') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-        @endif
-        @if (session('warning'))
-            <div class="alert alert-warning alert-dismissible fade show">{{ session('warning') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-        @endif
-        @if (session('importErrors'))
-            @foreach (session('importErrors') as $err)
-                <div class="alert alert-warning py-1 small mb-1">{{ $err }}</div>
-            @endforeach
-        @endif
-        @if ($errors->any())
-            <div class="alert alert-danger"><ul class="mb-0">
-                @foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach
-            </ul></div>
-        @endif
+    <div class="flex min-w-0 flex-1 flex-col">
+        <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+            <div class="flex items-center justify-between gap-3">
+                <a href="{{ route('dashboard') }}" class="flex items-center gap-2 text-slate-900 no-underline">
+                    <span class="grid h-10 w-10 place-items-center rounded-lg bg-red-500 font-black text-white">MD</span>
+                    <span class="font-black">Mo' Digital</span>
+                </a>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                </form>
+            </div>
+            <nav class="mt-3 flex gap-2 overflow-x-auto pb-1">
+                @foreach ($navItems as $item)
+                    @php $active = request()->routeIs(...(array) $item['match']); @endphp
+                    <a href="{{ route($item['route']) }}"
+                       class="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-bold no-underline {{ $active ? 'bg-red-500 text-white' : 'bg-slate-100 text-slate-700' }}">
+                        <i class="bi {{ $item['icon'] }} me-1"></i>{{ $item['label'] }}
+                    </a>
+                @endforeach
+            </nav>
+        </header>
 
-        @yield('content')
-    </main>
+        <main class="flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+            <div class="mx-auto max-w-7xl">
+                @if (session('status'))
+                    <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+                        {{ session('status') }}
+                    </div>
+                @endif
+                @if (session('warning'))
+                    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                        {{ session('warning') }}
+                    </div>
+                @endif
+                @if (session('importErrors'))
+                    <div class="mb-4 space-y-2">
+                        @foreach (session('importErrors') as $err)
+                            <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800">{{ $err }}</div>
+                        @endforeach
+                    </div>
+                @endif
+                @if ($errors->any())
+                    <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+                        <ul class="mb-0">
+                            @foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @yield('content')
+            </div>
+        </main>
+    </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

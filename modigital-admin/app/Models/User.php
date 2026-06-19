@@ -14,7 +14,7 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'password', 'role', 'scanner_enabled'];
+    protected $fillable = ['name', 'email', 'password', 'role', 'scanner_enabled', 'profile_photo_path'];
 
     protected $hidden = ['password', 'remember_token'];
 
@@ -35,6 +35,11 @@ class User extends Authenticatable
     public function canScan(): bool
     {
         return $this->isAdmin() || $this->scanner_enabled;
+    }
+
+    public function profilePhotoUrl(): ?string
+    {
+        return $this->profile_photo_path ? asset('storage/'.$this->profile_photo_path) : null;
     }
 
     /** Events this (staff) user is assigned to scan for. */

@@ -1,9 +1,18 @@
+import 'package:flutter/foundation.dart';
+
 /// Backend configuration.
 ///
-/// [apiBase] is the single place the app learns where the Laravel API lives.
-///
-///   Android emulator:              http://10.0.2.2:8000/api
-///   iOS simulator:                 http://localhost:8000/api
-///   Physical device (same Wi-Fi):  http://192.168.X.X:8000/api
-///   Production:                    https://admin.yourdomain.com/api
-const String apiBase = 'http://10.0.2.2:8000/api';
+/// Android emulators reach the host machine through 10.0.2.2. Desktop, web,
+/// and iOS simulator builds can use localhost directly.
+const _apiBaseOverride = String.fromEnvironment('API_BASE');
+
+String get apiBase {
+  if (_apiBaseOverride.isNotEmpty) {
+    return _apiBaseOverride;
+  }
+
+  return switch (defaultTargetPlatform) {
+    TargetPlatform.android => 'http://10.0.2.2:8000/api',
+    _ => 'http://127.0.0.1:8000/api',
+  };
+}

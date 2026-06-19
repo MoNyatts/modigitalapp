@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../main.dart';
 import '../models.dart';
 import 'login_screen.dart';
 import 'scanner_screen.dart';
 
-/// Pick an event and activity, then start scanning.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -15,6 +15,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<List<Event>> _events;
+  int _tabIndex = 0;
+  int? _selectedEventId;
+  int? _selectedActivityId;
+  int? _selectedReportEventId;
+
+  bool get _isAdmin => api.isAdmin;
 
   @override
   void initState() {
@@ -30,81 +36,1586 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _logout() async {
     await api.logout();
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select Event'),
-        actions: [
-          IconButton(onPressed: _logout, icon: const Icon(Icons.logout), tooltip: 'Sign out'),
-        ],
+    final tabs = _isAdmin ? _adminTabs : _staffTabs;
+    final activeTab = tabs[_tabIndex.clamp(0, tabs.length - 1)];
+
+    return FutureBuilder<List<Event>>(
+      future: _events,
+      builder: (context, snapshot) {
+        final events = snapshot.data ?? [];
+        final loading = snapshot.connectionState == ConnectionState.waiting;
+
+        return Scaffold(
+          appBar: AppBar(
+            toolbarHeight: 82,
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  activeTab.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 24,
+                  ),
+                ),
+                Text(
+                  api.userName ?? 'Mo Digital',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              if (_isAdmin && activeTab.kind == _HomeTabKind.events)
+                Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: CircleAvatar(
+                    backgroundColor: brandRed,
+                    foregroundColor: Colors.white,
+                    child: IconButton(
+                      onPressed: _refresh,
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Refresh',
+                    ),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: IconButton(
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh',
+                  ),
+                ),
+            ],
+          ),
+          body: loading
+              ? const Center(child: CircularProgressIndicator())
+              : snapshot.hasError
+              ? _Message(
+                  icon: Icons.cloud_off,
+                  text: 'Could not load events\n${snapshot.error}',
+                  onRetry: _refresh,
+                )
+              : _Body(
+                  kind: activeTab.kind,
+                  events: events,
+                  isAdmin: _isAdmin,
+                  selectedEventId: _selectedEventId,
+                  selectedActivityId: _selectedActivityId,
+                  selectedReportEventId: _selectedReportEventId,
+                  onEventChanged: (eventId) => setState(() {
+                    _selectedEventId = eventId;
+                    _selectedActivityId = null;
+                  }),
+                  onActivityChanged: (activityId) =>
+                      setState(() => _selectedActivityId = activityId),
+                  onReportEventChanged: (eventId) =>
+                      setState(() => _selectedReportEventId = eventId),
+                  onRefresh: _refresh,
+                  onLogout: _logout,
+                ),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _tabIndex.clamp(0, tabs.length - 1),
+            onDestinationSelected: (index) => setState(() => _tabIndex = index),
+            indicatorColor: brandRed.withValues(alpha: 0.12),
+            destinations: [
+              for (final tab in tabs)
+                NavigationDestination(
+                  icon: Icon(tab.icon),
+                  selectedIcon: Icon(tab.icon, color: brandRed),
+                  label: tab.label,
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Body extends StatelessWidget {
+  final _HomeTabKind kind;
+  final List<Event> events;
+  final bool isAdmin;
+  final int? selectedEventId;
+  final int? selectedActivityId;
+  final int? selectedReportEventId;
+  final ValueChanged<int?> onEventChanged;
+  final ValueChanged<int?> onActivityChanged;
+  final ValueChanged<int?> onReportEventChanged;
+  final Future<void> Function() onRefresh;
+  final Future<void> Function() onLogout;
+
+  const _Body({
+    required this.kind,
+    required this.events,
+    required this.isAdmin,
+    required this.selectedEventId,
+    required this.selectedActivityId,
+    required this.selectedReportEventId,
+    required this.onEventChanged,
+    required this.onActivityChanged,
+    required this.onReportEventChanged,
+    required this.onRefresh,
+    required this.onLogout,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (kind) {
+      _HomeTabKind.events => _EventsTab(
+        events: events,
+        isAdmin: isAdmin,
+        onRefresh: onRefresh,
       ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: FutureBuilder<List<Event>>(
-          future: _events,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return _Message(
-                icon: Icons.cloud_off,
-                text: 'Could not load events\n${snapshot.error}',
-                onRetry: _refresh,
-              );
-            }
+      _HomeTabKind.scanner => _ScannerTab(
+        events: events,
+        selectedEventId: selectedEventId,
+        selectedActivityId: selectedActivityId,
+        onEventChanged: onEventChanged,
+        onActivityChanged: onActivityChanged,
+      ),
+      _HomeTabKind.reports => _ReportsTab(
+        events: events,
+        isAdmin: isAdmin,
+        selectedEventId: selectedReportEventId,
+        onEventChanged: onReportEventChanged,
+      ),
+      _HomeTabKind.qrCodes => _QrCodesTab(events: events),
+      _HomeTabKind.users => _UsersTab(
+        events: events,
+        onRefreshEvents: onRefresh,
+        onLogout: onLogout,
+      ),
+      _HomeTabKind.profile => _ProfileTab(events: events, onLogout: onLogout),
+    };
+  }
+}
 
-            final events = snapshot.data ?? [];
-            if (events.isEmpty) {
-              return _Message(
-                icon: Icons.event_busy,
-                text: 'No events assigned to you yet.\nAsk an administrator to assign you.',
-                onRetry: _refresh,
-              );
-            }
+class _EventsTab extends StatelessWidget {
+  final List<Event> events;
+  final bool isAdmin;
+  final Future<void> Function() onRefresh;
 
-            return ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(12),
-              itemCount: events.length,
-              itemBuilder: (context, i) {
-                final event = events[i];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ExpansionTile(
-                    title: Text(event.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text('${event.location} · ${event.startDate}'),
-                    leading: const CircleAvatar(child: Icon(Icons.event)),
-                    children: [
-                      if (event.activities.isEmpty)
-                        const ListTile(
-                          dense: true,
-                          title: Text('No activities — ask an admin to add one.',
-                              style: TextStyle(color: Colors.black54)),
-                        ),
-                      for (final activity in event.activities)
-                        ListTile(
-                          leading: const Icon(Icons.qr_code_scanner),
-                          title: Text(activity.name),
-                          subtitle: activity.day != null ? Text('Day ${activity.day}') : null,
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ScannerScreen(event: event, activity: activity),
+  const _EventsTab({
+    required this.events,
+    required this.isAdmin,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (events.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const SizedBox(height: 80),
+          Icon(Icons.event_busy, size: 64, color: Colors.black26),
+          const SizedBox(height: 16),
+          Text(
+            isAdmin
+                ? 'No events have been created yet.'
+                : 'No events assigned to you yet.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.black54),
+          ),
+          if (isAdmin) ...[
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: () => _showEventDialog(context, onRefresh),
+              icon: const Icon(Icons.add),
+              label: const Text('Create event'),
+            ),
+          ],
+        ],
+      );
+    }
+
+    final totalAdmissions = events.fold<int>(
+      0,
+      (total, event) => total + event.totalAdmissions,
+    );
+    final qrCodes = events.fold<int>(
+      0,
+      (total, event) => total + event.qrCodesCount,
+    );
+    final activities = events.fold<int>(
+      0,
+      (total, event) => total + event.activities.length,
+    );
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: events.length + 1,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return _OverviewCard(
+            title: isAdmin ? 'Admin snapshot' : 'Assigned event snapshot',
+            subtitle: isAdmin
+                ? 'Live totals across all events'
+                : 'Your current scanner access',
+            stats: [
+              _OverviewStat(
+                Icons.event_available_outlined,
+                'Events',
+                events.length.toString(),
+                brandRed,
+              ),
+              _OverviewStat(
+                Icons.qr_code_2_outlined,
+                'QR codes',
+                qrCodes.toString(),
+                brandNavy,
+              ),
+              _OverviewStat(
+                Icons.how_to_reg_outlined,
+                'Admitted',
+                totalAdmissions.toString(),
+                brandTeal,
+              ),
+              _OverviewStat(
+                Icons.timeline_outlined,
+                'Activities',
+                activities.toString(),
+                brandGold,
+              ),
+            ],
+            action: isAdmin
+                ? FilledButton.icon(
+                    onPressed: () => _showEventDialog(context, onRefresh),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create event'),
+                  )
+                : null,
+          );
+        }
+
+        final event = events[index - 1];
+        return _EventCard(
+          event: event,
+          roleLabel: isAdmin ? 'No guest users assigned' : 'Assigned to you',
+        );
+      },
+    );
+  }
+}
+
+class _ScannerTab extends StatelessWidget {
+  final List<Event> events;
+  final int? selectedEventId;
+  final int? selectedActivityId;
+  final ValueChanged<int?> onEventChanged;
+  final ValueChanged<int?> onActivityChanged;
+
+  const _ScannerTab({
+    required this.events,
+    required this.selectedEventId,
+    required this.selectedActivityId,
+    required this.onEventChanged,
+    required this.onActivityChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedEvent =
+        _findEvent(events, selectedEventId) ?? events.firstOrNull;
+    final activities = selectedEvent?.activities ?? const <Activity>[];
+    final selectedActivity =
+        _findActivity(activities, selectedActivityId) ?? activities.firstOrNull;
+    final canScan = selectedEvent != null && selectedActivity != null;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _PickerCard(
+          label: 'Selected Event',
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: selectedEvent?.id,
+              isExpanded: true,
+              hint: const Text('Select Event'),
+              items: [
+                for (final event in events)
+                  DropdownMenuItem(
+                    value: event.id,
+                    child: Text(event.name, overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: onEventChanged,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        _PickerCard(
+          label: 'Selected Activity',
+          muted: selectedEvent == null,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: selectedActivity?.id,
+              isExpanded: true,
+              hint: const Text('Select Activity'),
+              items: [
+                for (final activity in activities)
+                  DropdownMenuItem(
+                    value: activity.id,
+                    child: Text(activity.name, overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: selectedEvent == null ? null : onActivityChanged,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          color: canScan ? brandNavy : Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.qr_code_scanner,
+                  size: 64,
+                  color: canScan ? Colors.white : Colors.grey.shade300,
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  canScan ? 'Ready to scan' : 'Scanner setup',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: canScan ? Colors.white : brandNavy,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  canScan
+                      ? 'Checking in guests for ${selectedActivity.name}'
+                      : 'Select an event and activity to start scanning QR codes.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: canScan ? Colors.white70 : Colors.black54,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: canScan
+                      ? () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ScannerScreen(
+                              event: selectedEvent,
+                              activity: selectedActivity,
                             ),
                           ),
+                        )
+                      : null,
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Open scanner'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReportsTab extends StatelessWidget {
+  final List<Event> events;
+  final bool isAdmin;
+  final int? selectedEventId;
+  final ValueChanged<int?> onEventChanged;
+
+  const _ReportsTab({
+    required this.events,
+    required this.isAdmin,
+    required this.selectedEventId,
+    required this.onEventChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (events.isEmpty) {
+      return const _EmptyState(
+        icon: Icons.bar_chart_outlined,
+        title: 'No report data',
+        text: 'Reports appear after events and activities are created.',
+      );
+    }
+
+    final selectedEvent = _findEvent(events, selectedEventId) ?? events.first;
+    final activities = events.fold<int>(
+      0,
+      (total, event) => total + event.activities.length,
+    );
+    final totalAdmissions = events.fold<int>(
+      0,
+      (total, event) => total + event.totalAdmissions,
+    );
+    final totalScans = events.fold<int>(
+      0,
+      (total, event) => total + event.totalScans,
+    );
+    final totalRejected = events.fold<int>(
+      0,
+      (total, event) => total + event.rejectedScans,
+    );
+    final totalQrCodes = events.fold<int>(
+      0,
+      (total, event) => total + event.qrCodesCount,
+    );
+    final selectedCapacity = selectedEvent.invitedGuests > 0
+        ? selectedEvent.invitedGuests
+        : selectedEvent.qrCodesCount;
+    final selectedProgress = selectedCapacity == 0
+        ? 0.0
+        : (selectedEvent.totalAdmissions / selectedCapacity).clamp(0.0, 1.0);
+    final busiestActivity = selectedEvent.activities.isEmpty
+        ? null
+        : selectedEvent.activities.reduce(
+            (a, b) => a.totalAdmissions >= b.totalAdmissions ? a : b,
+          );
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _OverviewCard(
+          title: 'Overall statistics',
+          subtitle: isAdmin
+              ? 'All events available to admin'
+              : 'Events assigned to your account',
+          stats: [
+            _OverviewStat(
+              Icons.event_available_outlined,
+              'Events',
+              events.length.toString(),
+              brandRed,
+            ),
+            _OverviewStat(
+              Icons.monitor_heart_outlined,
+              'Activities',
+              activities.toString(),
+              brandTeal,
+            ),
+            _OverviewStat(
+              Icons.how_to_reg_outlined,
+              'Admitted',
+              totalAdmissions.toString(),
+              Colors.green,
+            ),
+            _OverviewStat(
+              Icons.block_outlined,
+              'Rejected',
+              totalRejected.toString(),
+              brandDarkRed,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _PickerCard(
+          label: 'Report Event',
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: selectedEvent.id,
+              isExpanded: true,
+              items: [
+                for (final event in events)
+                  DropdownMenuItem(
+                    value: event.id,
+                    child: Text(event.name, overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: onEventChanged,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _ReportHero(
+          event: selectedEvent,
+          progress: selectedProgress,
+          capacity: selectedCapacity,
+          totalQrCodes: totalQrCodes,
+          totalScans: totalScans,
+          busiestActivity: busiestActivity,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Activity breakdown',
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 10),
+        if (selectedEvent.activities.isEmpty)
+          const _EmptyState(
+            icon: Icons.fact_check_outlined,
+            title: 'No activities',
+            text: 'Add event activities to track admissions.',
+          )
+        else
+          for (final activity in selectedEvent.activities) ...[
+            _ActivityReportCard(activity: activity),
+            const SizedBox(height: 10),
+          ],
+      ],
+    );
+  }
+}
+
+class _QrCodesTab extends StatelessWidget {
+  final List<Event> events;
+
+  const _QrCodesTab({required this.events});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        for (final event in events)
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: surfaceWarm,
+                foregroundColor: brandRed,
+                child: Icon(Icons.inventory_2_outlined),
+              ),
+              title: Text(
+                event.name,
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              subtitle: Text('${event.activities.length} activities'),
+              trailing: const Icon(Icons.chevron_right),
+            ),
+          ),
+        if (events.isEmpty)
+          const _EmptyState(
+            icon: Icons.inventory_2_outlined,
+            title: 'No QR code batches',
+            text: 'Create an event before importing QR codes.',
+          ),
+      ],
+    );
+  }
+}
+
+class _UsersTab extends StatefulWidget {
+  final List<Event> events;
+  final Future<void> Function() onRefreshEvents;
+  final Future<void> Function() onLogout;
+
+  const _UsersTab({
+    required this.events,
+    required this.onRefreshEvents,
+    required this.onLogout,
+  });
+
+  @override
+  State<_UsersTab> createState() => _UsersTabState();
+}
+
+class _UsersTabState extends State<_UsersTab> {
+  late Future<List<AppUser>> _users;
+
+  @override
+  void initState() {
+    super.initState();
+    _users = api.users();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _users = api.users());
+    await Future.wait([_users, widget.onRefreshEvents()]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<AppUser>>(
+      future: _users,
+      builder: (context, snapshot) {
+        final users = snapshot.data ?? [];
+        final loading = snapshot.connectionState == ConnectionState.waiting;
+        final admins = users.where((user) => user.isAdmin).length;
+        final staff = users.where((user) => !user.isAdmin).length;
+
+        if (loading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return _Message(
+            icon: Icons.group_off_outlined,
+            text: 'Could not load users\n${snapshot.error}',
+            onRetry: _refresh,
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _OverviewCard(
+                title: 'User management',
+                subtitle: 'Create scanner accounts and manage admin access',
+                stats: [
+                  _OverviewStat(
+                    Icons.people_outline,
+                    'Users',
+                    users.length.toString(),
+                    brandNavy,
+                  ),
+                  _OverviewStat(
+                    Icons.admin_panel_settings_outlined,
+                    'Admins',
+                    admins.toString(),
+                    brandRed,
+                  ),
+                  _OverviewStat(
+                    Icons.qr_code_scanner,
+                    'Staff',
+                    staff.toString(),
+                    brandTeal,
+                  ),
+                  _OverviewStat(
+                    Icons.event_available_outlined,
+                    'Events',
+                    widget.events.length.toString(),
+                    brandGold,
+                  ),
+                ],
+                action: FilledButton.icon(
+                  onPressed: () => _showUserDialog(
+                    context,
+                    events: widget.events,
+                    onSaved: _refresh,
+                  ),
+                  icon: const Icon(Icons.person_add_alt_1),
+                  label: const Text('Add user'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              for (final user in users) ...[
+                _AdminUserCard(
+                  user: user,
+                  events: widget.events,
+                  onSaved: _refresh,
+                ),
+                const SizedBox(height: 10),
+              ],
+              const SizedBox(height: 16),
+              _ActionTile(
+                icon: Icons.logout,
+                label: 'Logout',
+                color: brandRed,
+                onTap: widget.onLogout,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ProfileTab extends StatelessWidget {
+  final List<Event> events;
+  final Future<void> Function() onLogout;
+
+  const _ProfileTab({required this.events, required this.onLogout});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          'Current User',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 12),
+        _UserCard(
+          name: api.userName ?? 'Scanner',
+          email: api.userEmail?.isNotEmpty == true
+              ? api.userEmail!
+              : 'No email available',
+          role: api.isAdmin ? 'Administrator' : 'Scanner',
+          roleColor: api.isAdmin ? Colors.green : brandGold,
+        ),
+        const SizedBox(height: 28),
+        const Text(
+          'Actions',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 12),
+        _ActionTile(
+          icon: Icons.logout,
+          label: 'Logout',
+          color: brandRed,
+          onTap: onLogout,
+        ),
+        const SizedBox(height: 28),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Guest Access',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 12),
+                Text('Only assigned events (${events.length} events)'),
+                const SizedBox(height: 8),
+                const Text('Scanner access: Enabled'),
+                const SizedBox(height: 8),
+                const Text('View reports for assigned events only'),
+                const SizedBox(height: 8),
+                const Text('Cannot create or delete events/activities'),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminUserCard extends StatelessWidget {
+  final AppUser user;
+  final List<Event> events;
+  final Future<void> Function() onSaved;
+
+  const _AdminUserCard({
+    required this.user,
+    required this.events,
+    required this.onSaved,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isCurrentUser = user.email == api.userEmail;
+
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(14),
+        leading: _UserAvatar(user: user),
+        title: Text(
+          user.name,
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(user.email, maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _Pill(
+                  user.isAdmin ? 'Admin' : 'Staff',
+                  color: user.isAdmin ? brandRed : brandTeal,
+                ),
+                _Pill(
+                  user.isAdmin
+                      ? 'Scanner enabled'
+                      : user.scannerEnabled
+                      ? 'Scanner on'
+                      : 'Scanner off',
+                  color: user.scannerEnabled || user.isAdmin
+                      ? Colors.green
+                      : brandDarkRed,
+                ),
+                _Pill(
+                  user.isAdmin
+                      ? 'All events'
+                      : '${user.assignedEventsCount ?? 0} events',
+                ),
+              ],
+            ),
+          ],
+        ),
+        trailing: Wrap(
+          spacing: 4,
+          children: [
+            IconButton(
+              onPressed: () => _showUserDialog(
+                context,
+                user: user,
+                events: events,
+                onSaved: onSaved,
+              ),
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit user',
+            ),
+            IconButton(
+              onPressed: isCurrentUser
+                  ? null
+                  : () => _confirmDeleteUser(context, user, onSaved),
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete user',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UserAvatar extends StatelessWidget {
+  final AppUser user;
+
+  const _UserAvatar({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final photoUrl = user.profilePhotoUrl;
+
+    return CircleAvatar(
+      radius: 25,
+      backgroundColor: user.isAdmin
+          ? brandRed.withValues(alpha: 0.12)
+          : brandTeal.withValues(alpha: 0.12),
+      foregroundColor: user.isAdmin ? brandRed : brandTeal,
+      backgroundImage: photoUrl == null || photoUrl.isEmpty
+          ? null
+          : NetworkImage(photoUrl),
+      child: photoUrl == null || photoUrl.isEmpty
+          ? Text(
+              user.name.trim().isEmpty
+                  ? '?'
+                  : user.name.trim()[0].toUpperCase(),
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            )
+          : null,
+    );
+  }
+}
+
+class _EventCard extends StatelessWidget {
+  final Event event;
+  final String roleLabel;
+
+  const _EventCard({required this.event, required this.roleLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    final capacity = event.invitedGuests > 0
+        ? event.invitedGuests
+        : event.qrCodesCount;
+    final progress = capacity == 0
+        ? 0.0
+        : (event.totalAdmissions / capacity).clamp(0.0, 1.0);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    event.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                _Pill('${event.activities.length} activities'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(
+                  Icons.group_outlined,
+                  size: 16,
+                  color: Colors.black45,
+                ),
+                const SizedBox(width: 6),
+                Text(roleLabel, style: const TextStyle(color: Colors.black45)),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                const Icon(
+                  Icons.calendar_month_outlined,
+                  size: 18,
+                  color: Colors.black54,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  event.startDate,
+                  style: const TextStyle(color: Colors.black54),
+                ),
+                const Spacer(),
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 18,
+                  color: Colors.black54,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    event.location,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 9,
+                backgroundColor: brandNavy.withValues(alpha: 0.08),
+                valueColor: const AlwaysStoppedAnimation<Color>(brandTeal),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniMetric(
+                    label: 'Admitted',
+                    value: event.totalAdmissions,
+                    color: brandTeal,
+                  ),
+                ),
+                Expanded(
+                  child: _MiniMetric(
+                    label: 'QR codes',
+                    value: event.qrCodesCount,
+                    color: brandNavy,
+                  ),
+                ),
+                Expanded(
+                  child: _MiniMetric(
+                    label: 'Rejected',
+                    value: event.rejectedScans,
+                    color: brandDarkRed,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PickerCard extends StatelessWidget {
+  final String label;
+  final Widget child;
+  final bool muted;
+
+  const _PickerCard({
+    required this.label,
+    required this.child,
+    this.muted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: muted ? Colors.white.withValues(alpha: 0.62) : Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(color: Colors.black45, fontSize: 15),
+            ),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OverviewStat {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _OverviewStat(this.icon, this.label, this.value, this.color);
+}
+
+class _OverviewCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final List<_OverviewStat> stats;
+  final Widget? action;
+
+  const _OverviewCard({
+    required this.title,
+    required this.subtitle,
+    required this.stats,
+    this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
                         ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.insights_outlined, color: brandRed),
+              ],
+            ),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: stats.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 2.25,
+              ),
+              itemBuilder: (context, index) {
+                final stat = stats[index];
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: stat.color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: stat.color.withValues(alpha: 0.10),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(stat.icon, color: stat.color, size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              stat.value,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            Text(
+                              stat.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.black54,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 );
               },
-            );
-          },
+            ),
+            if (action != null) ...[const SizedBox(height: 14), action!],
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _ReportHero extends StatelessWidget {
+  final Event event;
+  final double progress;
+  final int capacity;
+  final int totalQrCodes;
+  final int totalScans;
+  final Activity? busiestActivity;
+
+  const _ReportHero({
+    required this.event,
+    required this.progress,
+    required this.capacity,
+    required this.totalQrCodes,
+    required this.totalScans,
+    required this.busiestActivity,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = (progress * 100).round();
+
+    return Card(
+      color: brandNavy,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    event.name,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                _Pill(
+                  '${event.activities.length} activities',
+                  color: brandGold,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${event.startDate}${event.endDate == null ? '' : ' to ${event.endDate}'} - ${event.location.isEmpty ? 'No location' : event.location}',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 18),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 12,
+                backgroundColor: Colors.white.withValues(alpha: 0.16),
+                valueColor: const AlwaysStoppedAnimation<Color>(brandGold),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              capacity == 0
+                  ? '$percent% checked in'
+                  : '${event.totalAdmissions} of $capacity expected admissions',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _DarkMetric(
+                    label: 'Scans',
+                    value: '${event.totalScans}',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _DarkMetric(
+                    label: 'QR codes',
+                    value: '${event.qrCodesCount}',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _DarkMetric(
+                    label: 'Rejected',
+                    value: '${event.rejectedScans}',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              busiestActivity == null
+                  ? 'No activity data yet.'
+                  : 'Busiest activity: ${busiestActivity!.name} (${busiestActivity!.totalAdmissions} admissions)',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'All report totals: $totalScans scans across $totalQrCodes QR codes.',
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DarkMetric extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DarkMetric({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityReportCard extends StatelessWidget {
+  final Activity activity;
+
+  const _ActivityReportCard({required this.activity});
+
+  @override
+  Widget build(BuildContext context) {
+    final denominator = activity.totalAdmissions + activity.rejectedScans;
+    final approvalRate = denominator == 0
+        ? 0.0
+        : (activity.totalAdmissions / denominator).clamp(0.0, 1.0);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    activity.name,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                _Pill(
+                  activity.isActive ? 'Active' : 'Paused',
+                  color: activity.isActive ? brandTeal : brandDarkRed,
+                ),
+              ],
+            ),
+            if (activity.day != null || activity.startTime != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                [
+                  if (activity.day != null) 'Day ${activity.day}',
+                  if (activity.startTime != null) activity.startTime!,
+                  if (activity.endTime != null) activity.endTime!,
+                ].join(' - '),
+                style: const TextStyle(
+                  color: Colors.black54,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: approvalRate,
+                minHeight: 10,
+                backgroundColor: brandRed.withValues(alpha: 0.12),
+                valueColor: const AlwaysStoppedAnimation<Color>(brandTeal),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniMetric(
+                    label: 'Admissions',
+                    value: activity.totalAdmissions,
+                    color: brandTeal,
+                  ),
+                ),
+                Expanded(
+                  child: _MiniMetric(
+                    label: 'Scans',
+                    value: activity.totalScans,
+                    color: brandNavy,
+                  ),
+                ),
+                Expanded(
+                  child: _MiniMetric(
+                    label: 'Unique',
+                    value: activity.uniqueCodes,
+                    color: brandGold,
+                  ),
+                ),
+                Expanded(
+                  child: _MiniMetric(
+                    label: 'Rejected',
+                    value: activity.rejectedScans,
+                    color: brandDarkRed,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniMetric extends StatelessWidget {
+  final String label;
+  final int value;
+  final Color color;
+
+  const _MiniMetric({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          '$value',
+          style: TextStyle(
+            color: color,
+            fontSize: 19,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Colors.black54,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _UserCard extends StatelessWidget {
+  final String name;
+  final String email;
+  final String role;
+  final Color roleColor;
+
+  const _UserCard({
+    required this.name,
+    required this.email,
+    required this.role,
+    required this.roleColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: CircleAvatar(
+          radius: 28,
+          backgroundColor: Colors.blue.shade50,
+          foregroundColor: Colors.blue.shade800,
+          child: const Icon(Icons.how_to_reg_outlined),
+        ),
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w900)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(email),
+            const SizedBox(height: 4),
+            _Pill(role, color: roleColor),
+          ],
+        ),
+        trailing: IconButton(
+          onPressed: null,
+          icon: const Icon(Icons.edit_outlined),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(
+          label,
+          style: TextStyle(color: color, fontWeight: FontWeight.w800),
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  final String label;
+  final Color? color;
+
+  const _Pill(this.label, {this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = color ?? Colors.blueGrey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: tint,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String text;
+
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 120),
+      child: Column(
+        children: [
+          Icon(icon, size: 64, color: Colors.grey.shade300),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.black54),
+          ),
+        ],
       ),
     );
   }
@@ -115,20 +1626,511 @@ class _Message extends StatelessWidget {
   final String text;
   final Future<void> Function() onRetry;
 
-  const _Message({required this.icon, required this.text, required this.onRetry});
+  const _Message({
+    required this.icon,
+    required this.text,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(24),
       children: [
         const SizedBox(height: 120),
         Icon(icon, size: 64, color: Colors.black26),
         const SizedBox(height: 16),
-        Text(text, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.black54),
+        ),
         const SizedBox(height: 16),
-        Center(child: OutlinedButton(onPressed: onRetry, child: const Text('Retry'))),
+        Center(
+          child: OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
+        ),
       ],
     );
   }
 }
+
+Future<void> _showEventDialog(
+  BuildContext context,
+  Future<void> Function() onSaved,
+) async {
+  final formKey = GlobalKey<FormState>();
+  final name = TextEditingController();
+  final location = TextEditingController();
+  final startDate = TextEditingController(
+    text: DateTime.now().toIso8601String().substring(0, 10),
+  );
+  final endDate = TextEditingController();
+  final invitedGuests = TextEditingController();
+  final activityName = TextEditingController(text: 'Main Entrance');
+  bool busy = false;
+  bool multiDay = false;
+
+  final created = await showDialog<bool>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: const Text('Create event'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: name,
+                  decoration: const InputDecoration(
+                    labelText: 'Event name',
+                    prefixIcon: Icon(Icons.event_outlined),
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: location,
+                  decoration: const InputDecoration(
+                    labelText: 'Location',
+                    prefixIcon: Icon(Icons.location_on_outlined),
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: startDate,
+                  decoration: const InputDecoration(
+                    labelText: 'Start date (YYYY-MM-DD)',
+                    prefixIcon: Icon(Icons.calendar_month_outlined),
+                  ),
+                  validator: _dateValidator,
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile.adaptive(
+                  value: multiDay,
+                  onChanged: (value) => setDialogState(() => multiDay = value),
+                  contentPadding: EdgeInsets.zero,
+                  activeThumbColor: brandRed,
+                  title: const Text(
+                    'Multi-day event',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                if (multiDay) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: endDate,
+                    decoration: const InputDecoration(
+                      labelText: 'End date (YYYY-MM-DD)',
+                      prefixIcon: Icon(Icons.event_available_outlined),
+                    ),
+                    validator: (value) {
+                      if (!multiDay || value == null || value.trim().isEmpty) {
+                        return null;
+                      }
+                      return _dateValidator(value);
+                    },
+                  ),
+                ],
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: invitedGuests,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Invited guests',
+                    prefixIcon: Icon(Icons.groups_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: activityName,
+                  decoration: const InputDecoration(
+                    labelText: 'First activity',
+                    prefixIcon: Icon(Icons.fact_check_outlined),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: busy ? null : () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: busy
+                ? null
+                : () async {
+                    if (!(formKey.currentState?.validate() ?? false)) return;
+                    setDialogState(() => busy = true);
+                    try {
+                      final guests = int.tryParse(invitedGuests.text.trim());
+                      await api.createEvent({
+                        'name': name.text.trim(),
+                        'location': location.text.trim(),
+                        'start_date': startDate.text.trim(),
+                        'end_date': multiDay && endDate.text.trim().isNotEmpty
+                            ? endDate.text.trim()
+                            : null,
+                        'is_multi_day': multiDay,
+                        'invited_guests': guests,
+                        'activities': [
+                          if (activityName.text.trim().isNotEmpty)
+                            {'name': activityName.text.trim()},
+                        ],
+                      });
+                      if (context.mounted) Navigator.pop(context, true);
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(e.toString())));
+                      setDialogState(() => busy = false);
+                    }
+                  },
+            child: Text(busy ? 'Creating...' : 'Create'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  name.dispose();
+  location.dispose();
+  startDate.dispose();
+  endDate.dispose();
+  invitedGuests.dispose();
+  activityName.dispose();
+
+  if (created == true) {
+    await onSaved();
+  }
+}
+
+Future<void> _showUserDialog(
+  BuildContext context, {
+  AppUser? user,
+  required List<Event> events,
+  required Future<void> Function() onSaved,
+}) async {
+  final formKey = GlobalKey<FormState>();
+  final name = TextEditingController(text: user?.name ?? '');
+  final email = TextEditingController(text: user?.email ?? '');
+  final password = TextEditingController();
+  var role = user?.role ?? 'staff';
+  var scannerEnabled = user?.scannerEnabled ?? true;
+  final selectedEventIds = <int>{...(user?.assignedEventIds ?? const [])};
+  bool busy = false;
+
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: Text(user == null ? 'Add user' : 'Edit user'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: name,
+                  decoration: const InputDecoration(
+                    labelText: 'Full name',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.mail_outline),
+                  ),
+                  validator: (value) {
+                    final text = value?.trim() ?? '';
+                    if (text.isEmpty) return 'Required';
+                    return text.contains('@') ? null : 'Enter a valid email';
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: password,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: user == null ? 'Password' : 'New password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                  ),
+                  validator: (value) {
+                    final text = value ?? '';
+                    if (user == null && text.length < 8) {
+                      return 'Minimum 8 characters';
+                    }
+                    if (user != null && text.isNotEmpty && text.length < 8) {
+                      return 'Minimum 8 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                _PickerCard(
+                  label: 'Role',
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: role,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'staff',
+                          child: Text('Staff scanner'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'admin',
+                          child: Text('Administrator'),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setDialogState(() => role = value ?? 'staff'),
+                    ),
+                  ),
+                ),
+                SwitchListTile.adaptive(
+                  value: role == 'admin' ? true : scannerEnabled,
+                  onChanged: role == 'admin'
+                      ? null
+                      : (value) => setDialogState(() => scannerEnabled = value),
+                  contentPadding: EdgeInsets.zero,
+                  activeThumbColor: brandRed,
+                  title: const Text(
+                    'Scanner access',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                if (role == 'staff') ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Assigned events',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (events.isEmpty)
+                    const Text(
+                      'No events available yet.',
+                      style: TextStyle(color: Colors.black54),
+                    )
+                  else
+                    for (final event in events)
+                      CheckboxListTile(
+                        value: selectedEventIds.contains(event.id),
+                        onChanged: (checked) => setDialogState(() {
+                          if (checked == true) {
+                            selectedEventIds.add(event.id);
+                          } else {
+                            selectedEventIds.remove(event.id);
+                          }
+                        }),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          event.name,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(event.startDate),
+                      ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: busy ? null : () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: busy
+                ? null
+                : () async {
+                    if (!(formKey.currentState?.validate() ?? false)) return;
+                    setDialogState(() => busy = true);
+                    final payload = <String, dynamic>{
+                      'name': name.text.trim(),
+                      'email': email.text.trim().toLowerCase(),
+                      'role': role,
+                      'scanner_enabled': role == 'admin'
+                          ? true
+                          : scannerEnabled,
+                      'event_ids': role == 'staff'
+                          ? selectedEventIds.toList()
+                          : <int>[],
+                    };
+                    if (password.text.isNotEmpty) {
+                      payload['password'] = password.text;
+                    }
+
+                    try {
+                      if (user == null) {
+                        await api.createUser(payload);
+                      } else {
+                        await api.updateUser(user.id, payload);
+                      }
+                      if (context.mounted) Navigator.pop(context, true);
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(e.toString())));
+                      setDialogState(() => busy = false);
+                    }
+                  },
+            child: Text(busy ? 'Saving...' : 'Save'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  name.dispose();
+  email.dispose();
+  password.dispose();
+
+  if (saved == true) {
+    await onSaved();
+  }
+}
+
+Future<void> _confirmDeleteUser(
+  BuildContext context,
+  AppUser user,
+  Future<void> Function() onDeleted,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Delete user'),
+      content: Text(
+        'Delete ${user.name}? This removes the account and event assignments.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: brandDarkRed),
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed != true) return;
+
+  try {
+    await api.deleteUser(user.id);
+    await onDeleted();
+  } catch (e) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(e.toString())));
+  }
+}
+
+String? _dateValidator(String? value) {
+  final text = value?.trim() ?? '';
+  if (text.isEmpty) return 'Required';
+  final valid = RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(text);
+  return valid ? null : 'Use YYYY-MM-DD';
+}
+
+Event? _findEvent(List<Event> events, int? id) {
+  if (id == null) return null;
+  for (final event in events) {
+    if (event.id == id) return event;
+  }
+  return null;
+}
+
+Activity? _findActivity(List<Activity> activities, int? id) {
+  if (id == null) return null;
+  for (final activity in activities) {
+    if (activity.id == id) return activity;
+  }
+  return null;
+}
+
+enum _HomeTabKind { events, scanner, reports, qrCodes, users, profile }
+
+class _HomeTab {
+  final _HomeTabKind kind;
+  final String label;
+  final String title;
+  final IconData icon;
+
+  const _HomeTab(this.kind, this.label, this.title, this.icon);
+}
+
+const _adminTabs = [
+  _HomeTab(
+    _HomeTabKind.events,
+    'Events',
+    'Events',
+    Icons.calendar_month_outlined,
+  ),
+  _HomeTab(
+    _HomeTabKind.scanner,
+    'Scanner',
+    'QR Scanner',
+    Icons.qr_code_scanner,
+  ),
+  _HomeTab(_HomeTabKind.reports, 'Reports', 'Reports', Icons.bar_chart),
+  _HomeTab(
+    _HomeTabKind.qrCodes,
+    'QR Codes',
+    'QR Codes',
+    Icons.inventory_2_outlined,
+  ),
+  _HomeTab(
+    _HomeTabKind.users,
+    'Users',
+    'User Management',
+    Icons.group_outlined,
+  ),
+];
+
+const _staffTabs = [
+  _HomeTab(
+    _HomeTabKind.events,
+    'Events',
+    'Events',
+    Icons.calendar_month_outlined,
+  ),
+  _HomeTab(
+    _HomeTabKind.scanner,
+    'Scanner',
+    'QR Scanner',
+    Icons.qr_code_scanner,
+  ),
+  _HomeTab(_HomeTabKind.reports, 'Reports', 'Reports', Icons.bar_chart),
+  _HomeTab(_HomeTabKind.profile, 'Profile', 'Profile', Icons.group_outlined),
+];

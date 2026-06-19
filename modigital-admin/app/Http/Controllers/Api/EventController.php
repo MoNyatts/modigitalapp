@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Event;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,26 +14,148 @@ class EventController extends Controller
     {
         $events = $request->user()
             ->visibleEvents()
-            ->with('activities')
+            ->withCount('qrCodes')
+            ->with(['activities' => fn ($query) => $query
+                ->withCount(['scans', 'rejectedScans'])
+                ->withSum('scans as admissions_sum', 'admission_count')])
             ->orderBy('start_date')
             ->get()
-            ->map(fn ($e) => [
-                'id' => $e->id,
-                'name' => $e->name,
-                'location' => $e->location,
-                'is_multi_day' => $e->is_multi_day,
-                'start_date' => $e->start_date->toDateString(),
-                'end_date' => $e->end_date?->toDateString(),
-                'activities' => $e->activities->map(fn ($a) => [
-                    'id' => $a->id,
-                    'name' => $a->name,
-                    'day' => $a->day,
-                    'start_time' => $a->start_time,
-                    'end_time' => $a->end_time,
-                    'is_active' => $a->is_active,
-                ]),
-            ]);
+            ->map(function ($event) {
+                $activities = $event->activities->map(function ($activity) {
+                    $uniqueCodes = $activity->scans()->distinct('qr_code_id')->count('qr_code_id');
+
+                    return [
+                        'id' => $activity->id,
+                        'name' => $activity->name,
+                        'day' => $activity->day,
+                        'start_time' => $activity->start_time,
+                        'end_time' => $activity->end_time,
+                        'is_active' => $activity->is_active,
+                        'total_admissions' => (int) ($activity->admissions_sum ?? 0),
+                        'total_scans' => (int) $activity->scans_count,
+                        'unique_codes' => (int) $uniqueCodes,
+                        'rejected_scans' => (int) $activity->rejected_scans_count,
+                    ];
+                });
+
+                return [
+                    'id' => $event->id,
+                    'name' => $event->name,
+                    'location' => $event->location,
+                    'is_multi_day' => $event->is_multi_day,
+                    'start_date' => $event->start_date->toDateString(),
+                    'end_date' => $event->end_date?->toDateString(),
+                    'invited_guests' => (int) ($event->invited_guests ?? 0),
+                    'qr_codes_count' => (int) $event->qr_codes_count,
+                    'total_admissions' => (int) $activities->sum('total_admissions'),
+                    'total_scans' => (int) $activities->sum('total_scans'),
+                    'unique_codes' => (int) $activities->sum('unique_codes'),
+                    'rejected_scans' => (int) $activities->sum('rejected_scans'),
+                    'activities' => $activities,
+                ];
+            });
 
         return response()->json(['events' => $events]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        if (!$request->user()->isAdmin()) {
+            return response()->json(['message' => 'Only administrators can create events'], 403);
+        }
+
+        $data = $this->validated($request);
+        $activities = $data['activities'] ?? [];
+        unset($data['activities']);
+
+        $event = Event::create($data + ['created_by' => $request->user()->id]);
+
+        foreach ($activities as $activity) {
+            if (trim((string) ($activity['name'] ?? '')) !== '') {
+                $event->activities()->create($activity + ['is_active' => true]);
+            }
+        }
+
+        return response()->json(['event' => $this->serializeEvent($event->fresh())], 201);
+    }
+
+    public function update(Request $request, Event $event): JsonResponse
+    {
+        if (!$request->user()->isAdmin()) {
+            return response()->json(['message' => 'Only administrators can update events'], 403);
+        }
+
+        $data = $this->validated($request);
+        unset($data['activities']);
+        $event->update($data);
+
+        return response()->json(['event' => $this->serializeEvent($event->fresh())]);
+    }
+
+    public function destroy(Request $request, Event $event): JsonResponse
+    {
+        if (!$request->user()->isAdmin()) {
+            return response()->json(['message' => 'Only administrators can delete events'], 403);
+        }
+
+        $event->delete();
+
+        return response()->json(['message' => 'Event deleted']);
+    }
+
+    private function validated(Request $request): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'location' => ['required', 'string', 'max:255'],
+            'is_multi_day' => ['sometimes', 'boolean'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'invited_guests' => ['nullable', 'integer', 'min:0'],
+            'activities' => ['sometimes', 'array'],
+            'activities.*.name' => ['required_with:activities', 'string', 'max:255'],
+            'activities.*.description' => ['nullable', 'string'],
+            'activities.*.day' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'activities.*.start_time' => ['nullable', 'date_format:H:i'],
+            'activities.*.end_time' => ['nullable', 'date_format:H:i'],
+        ]) + ['is_multi_day' => $request->boolean('is_multi_day')];
+    }
+
+    private function serializeEvent(Event $event): array
+    {
+        $event->loadCount('qrCodes');
+        $event->load(['activities' => fn ($query) => $query
+            ->withCount(['scans', 'rejectedScans'])
+            ->withSum('scans as admissions_sum', 'admission_count')]);
+
+        $activities = $event->activities->map(fn ($activity) => [
+            'id' => $activity->id,
+            'name' => $activity->name,
+            'day' => $activity->day,
+            'start_time' => $activity->start_time,
+            'end_time' => $activity->end_time,
+            'is_active' => $activity->is_active,
+            'total_admissions' => (int) ($activity->admissions_sum ?? 0),
+            'total_scans' => (int) $activity->scans_count,
+            'unique_codes' => (int) $activity->scans()->distinct('qr_code_id')->count('qr_code_id'),
+            'rejected_scans' => (int) $activity->rejected_scans_count,
+        ]);
+
+        return [
+            'id' => $event->id,
+            'name' => $event->name,
+            'location' => $event->location,
+            'is_multi_day' => $event->is_multi_day,
+            'start_date' => $event->start_date->toDateString(),
+            'end_date' => $event->end_date?->toDateString(),
+            'invited_guests' => (int) ($event->invited_guests ?? 0),
+            'qr_codes_count' => (int) $event->qr_codes_count,
+            'total_admissions' => (int) $activities->sum('total_admissions'),
+            'total_scans' => (int) $activities->sum('total_scans'),
+            'unique_codes' => (int) $activities->sum('unique_codes'),
+            'rejected_scans' => (int) $activities->sum('rejected_scans'),
+            'activities' => $activities,
+        ];
     }
 }

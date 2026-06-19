@@ -26,6 +26,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('events/{event}/qrcodes', [QrCodeController::class, 'index'])->name('qrcodes.index');
     Route::post('events/{event}/qrcodes/upload', [QrCodeController::class, 'upload'])->name('qrcodes.upload');
     Route::get('events/{event}/qrcodes/download', [QrCodeController::class, 'downloadZip'])->name('qrcodes.download');
+    Route::get('qrcodes/template', [QrCodeController::class, 'template'])->name('qrcodes.template');
     Route::patch('events/{event}/qrcodes/{qrCode}/invalidate', [QrCodeController::class, 'invalidate'])->name('qrcodes.invalidate');
 
     Route::resource('users', UserController::class)->except(['show']);

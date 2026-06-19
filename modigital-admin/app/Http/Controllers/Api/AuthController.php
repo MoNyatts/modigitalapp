@@ -36,6 +36,7 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
+                'profile_photo_url' => $user->profilePhotoUrl(),
             ],
         ]);
     }
@@ -52,7 +53,11 @@ class AuthController extends Controller
         $u = $request->user();
 
         return response()->json([
-            'id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'role' => $u->role,
+            'id' => $u->id,
+            'name' => $u->name,
+            'email' => $u->email,
+            'role' => $u->role,
+            'profile_photo_url' => $u->profilePhotoUrl(),
         ]);
     }
 }

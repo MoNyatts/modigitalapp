@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Models\RejectedScan;
 use Illuminate\Http\Request;
 
 class EventController extends Controller
@@ -19,7 +20,7 @@ class EventController extends Controller
 
     public function create()
     {
-        return view('events.form', ['event' => new Event()]);
+        return redirect()->route('events.index');
     }
 
     public function store(Request $request)
@@ -31,11 +32,18 @@ class EventController extends Controller
 
     public function show(Event $event)
     {
-        $event->load(['activities', 'assignedUsers']);
+        $event->load([
+            'activities' => fn ($query) => $query
+                ->withCount(['scans', 'rejectedScans'])
+                ->withSum('scans as admissions_sum', 'admission_count'),
+            'assignedUsers',
+        ]);
 
         $stats = [
             'qr_count' => $event->qrCodes()->count(),
             'admissions' => (int) $event->scans()->sum('admission_count'),
+            'activities' => $event->activities->count(),
+            'rejections' => RejectedScan::whereHas('activity', fn ($query) => $query->where('event_id', $event->id))->count(),
         ];
 
         $staff = \App\Models\User::where('role', 'staff')->orderBy('name')->get();
@@ -45,7 +53,7 @@ class EventController extends Controller
 
     public function edit(Event $event)
     {
-        return view('events.form', compact('event'));
+        return redirect()->route('events.show', $event);
     }
 
     public function update(Request $request, Event $event)

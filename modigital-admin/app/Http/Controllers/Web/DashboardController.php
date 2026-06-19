@@ -14,6 +14,22 @@ class DashboardController extends Controller
     public function index()
     {
         $today = now()->startOfDay();
+        $weekStart = now()->subDays(6)->startOfDay();
+        $admissionsByDay = collect(range(0, 6))->map(function ($offset) use ($weekStart) {
+            $day = $weekStart->copy()->addDays($offset);
+
+            return [
+                'label' => $day->format('D'),
+                'value' => (int) Scan::whereDate('created_at', $day->toDateString())->sum('admission_count'),
+            ];
+        });
+
+        $eventPerformance = Event::orderByDesc('start_date')->limit(6)->get()
+            ->map(fn (Event $event) => [
+                'name' => $event->name,
+                'admissions' => (int) Scan::whereHas('activity', fn ($query) => $query->where('event_id', $event->id))->sum('admission_count'),
+                'qr_codes' => $event->qrCodes()->count(),
+            ]);
 
         return view('dashboard', [
             'eventCount' => Event::count(),
@@ -25,6 +41,8 @@ class DashboardController extends Controller
             'rejectionsToday' => RejectedScan::where('created_at', '>=', $today)->count(),
             'recentScans' => Scan::with(['qrCode:id,code,guest_name', 'activity:id,name,event_id', 'activity.event:id,name', 'scanner:id,name'])
                 ->latest()->limit(10)->get(),
+            'admissionsByDay' => $admissionsByDay,
+            'eventPerformance' => $eventPerformance,
         ]);
     }
 }

@@ -65,9 +65,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     ScanResult result;
     try {
-      result = await api.scan(qrData, widget.activity.id, admissionCount: admissionCount);
+      result = await api.scan(
+        qrData,
+        widget.activity.id,
+        admissionCount: admissionCount,
+      );
     } catch (e) {
-      result = ScanResult(success: false, message: e.toString(), remaining: 0, maxAdmissions: 0);
+      result = ScanResult(
+        success: false,
+        message: e.toString(),
+        remaining: 0,
+        maxAdmissions: 0,
+      );
     }
 
     await _loadFeed();
@@ -108,10 +117,18 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 children: [
                   const Text('Guests: '),
                   IconButton(
-                    onPressed: count > 1 ? () => setDialogState(() => count--) : null,
+                    onPressed: count > 1
+                        ? () => setDialogState(() => count--)
+                        : null,
                     icon: const Icon(Icons.remove_circle_outline),
                   ),
-                  Text('$count', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                    '$count',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   IconButton(
                     onPressed: () => setDialogState(() => count++),
                     icon: const Icon(Icons.add_circle_outline),
@@ -121,7 +138,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
               style: FilledButton.styleFrom(minimumSize: const Size(100, 44)),
               onPressed: () => Navigator.pop(context, true),
@@ -147,7 +167,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(widget.event.name, style: const TextStyle(fontSize: 16)),
-            Text(widget.activity.name, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(
+              widget.activity.name,
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
           ],
         ),
         actions: [
@@ -209,9 +232,21 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     padding: const EdgeInsets.all(10),
                     child: Row(
                       children: [
-                        _Stat(label: 'Admitted', value: feed?.totalAdmissions ?? 0, color: Colors.green),
-                        _Stat(label: 'Scans', value: feed?.totalScans ?? 0, color: brandNavy),
-                        _Stat(label: 'Codes', value: feed?.uniqueCodes ?? 0, color: brandRed),
+                        _Stat(
+                          label: 'Admitted',
+                          value: feed?.totalAdmissions ?? 0,
+                          color: Colors.green,
+                        ),
+                        _Stat(
+                          label: 'Scans',
+                          value: feed?.totalScans ?? 0,
+                          color: brandNavy,
+                        ),
+                        _Stat(
+                          label: 'Codes',
+                          value: feed?.uniqueCodes ?? 0,
+                          color: brandRed,
+                        ),
                       ],
                     ),
                   ),
@@ -220,31 +255,51 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     child: feed == null
                         ? const Center(child: CircularProgressIndicator())
                         : feed.scans.isEmpty
-                            ? const Center(
-                                child: Text('No admissions yet — scans from all devices appear here.',
-                                    style: TextStyle(color: Colors.black54)))
-                            : ListView.separated(
-                                itemCount: feed.scans.length,
-                                separatorBuilder: (context, index) => const Divider(height: 1),
-                                itemBuilder: (context, i) {
-                                  final scan = feed.scans[i];
-                                  return ListTile(
-                                    dense: true,
-                                    leading: CircleAvatar(
-                                      radius: 16,
-                                      backgroundColor: Colors.green.shade50,
-                                      child: Text('${scan.admissionCount}',
-                                          style: TextStyle(
-                                              color: Colors.green.shade700, fontWeight: FontWeight.bold)),
+                        ? const Center(
+                            child: Text(
+                              'No admissions yet — scans from all devices appear here.',
+                              style: TextStyle(color: Colors.black54),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: feed.scans.length,
+                            separatorBuilder: (context, index) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, i) {
+                              final scan = feed.scans[i];
+                              return ListTile(
+                                dense: true,
+                                leading: CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: Colors.green.shade50,
+                                  child: Text(
+                                    '${scan.admissionCount}',
+                                    style: TextStyle(
+                                      color: Colors.green.shade700,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    title: Text('${scan.code} — ${scan.guestName}',
-                                        style: const TextStyle(fontSize: 14)),
-                                    subtitle: Text('by ${scan.scannedBy}', style: const TextStyle(fontSize: 12)),
-                                    trailing: Text(TimeOfDay.fromDateTime(scan.scannedAt.toLocal()).format(context),
-                                        style: const TextStyle(color: Colors.black45, fontSize: 12)),
-                                  );
-                                },
-                              ),
+                                  ),
+                                ),
+                                title: Text(
+                                  '${scan.code} — ${scan.guestName}',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                subtitle: Text(
+                                  'by ${scan.scannedBy}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                trailing: Text(
+                                  TimeOfDay.fromDateTime(
+                                    scan.scannedAt.toLocal(),
+                                  ).format(context),
+                                  style: const TextStyle(
+                                    color: Colors.black45,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
@@ -268,8 +323,18 @@ class _Stat extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Text('$value', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: color)),
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+          ),
         ],
       ),
     );
@@ -286,7 +351,7 @@ class _ResultDialog extends StatelessWidget {
     final ok = result.success;
 
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       icon: Icon(
         ok ? Icons.check_circle : Icons.cancel,
         size: 64,
@@ -297,14 +362,19 @@ class _ResultDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (result.guestName != null)
-            Text(result.guestName!,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+            Text(
+              result.guestName!,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center,
+            ),
           const SizedBox(height: 6),
           Text(result.message, textAlign: TextAlign.center),
           if (ok && result.maxAdmissions > 1) ...[
             const SizedBox(height: 6),
-            Text('${result.remaining} of ${result.maxAdmissions} admissions remaining',
-                style: const TextStyle(color: Colors.black54)),
+            Text(
+              '${result.remaining} of ${result.maxAdmissions} admissions remaining',
+              style: const TextStyle(color: Colors.black54),
+            ),
           ],
         ],
       ),
