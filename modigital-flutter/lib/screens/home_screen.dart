@@ -1830,6 +1830,350 @@ class _Message extends StatelessWidget {
   }
 }
 
+class _AdminFormSheet extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String submitLabel;
+  final String busyLabel;
+  final bool busy;
+  final VoidCallback onCancel;
+  final VoidCallback? onSubmit;
+  final Widget child;
+
+  const _AdminFormSheet({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.submitLabel,
+    required this.busyLabel,
+    required this.busy,
+    required this.onCancel,
+    required this.onSubmit,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: FractionallySizedBox(
+        alignment: Alignment.bottomCenter,
+        heightFactor: 0.92,
+        child: Material(
+          color: surfaceCool,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+          clipBehavior: Clip.antiAlias,
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.fromLTRB(16, 10, 8, 14),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.black12,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: brandRed.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(icon, color: brandRed),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 21,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  subtitle,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.black54,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: busy ? null : onCancel,
+                            icon: const Icon(Icons.close),
+                            tooltip: 'Close',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                    child: child,
+                  ),
+                ),
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: busy ? null : onCancel,
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: onSubmit,
+                          icon: busy
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.check),
+                          label: Text(busy ? busyLabel : submitLabel),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FormSection extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Widget? trailing;
+  final List<Widget> children;
+
+  const _FormSection({
+    required this.icon,
+    required this.title,
+    required this.children,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: brandNavy.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: brandNavy.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: brandNavy, size: 19),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              if (trailing != null) trailing!,
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _SwitchRow extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  final IconData icon;
+  final String title;
+
+  const _SwitchRow({
+    required this.value,
+    required this.onChanged,
+    required this.icon,
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: surfaceCool,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: brandNavy.withValues(alpha: 0.08)),
+      ),
+      child: SwitchListTile.adaptive(
+        value: value,
+        onChanged: onChanged,
+        contentPadding: const EdgeInsets.only(left: 12, right: 8),
+        activeThumbColor: brandRed,
+        secondary: Icon(
+          icon,
+          color: onChanged == null ? Colors.black26 : brandNavy,
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+      ),
+    );
+  }
+}
+
+class _InlineNotice extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InlineNotice({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: brandGold.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: brandGold.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: brandGold),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Colors.black54,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EventAccessTile extends StatelessWidget {
+  final Event event;
+  final bool selected;
+  final ValueChanged<bool> onChanged;
+
+  const _EventAccessTile({
+    required this.event,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? brandRed.withValues(alpha: 0.07) : surfaceCool,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => onChanged(!selected),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 10, 12, 10),
+          child: Row(
+            children: [
+              Checkbox(
+                value: selected,
+                activeColor: brandRed,
+                onChanged: (value) => onChanged(value ?? false),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        event.startDate,
+                        if (event.location.isNotEmpty) event.location,
+                      ].join(' - '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _Pill('${event.activities.length}', color: brandNavy),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 Future<void> _showEventDialog(
   BuildContext context,
   Future<void> Function() onSaved,
@@ -1846,133 +2190,183 @@ Future<void> _showEventDialog(
   bool busy = false;
   bool multiDay = false;
 
-  final created = await showDialog<bool>(
+  final created = await showModalBottomSheet<bool>(
     context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
     builder: (context) => StatefulBuilder(
-      builder: (context, setDialogState) => AlertDialog(
-        title: const Text('Create event'),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
+      builder: (context, setDialogState) {
+        Future<void> pickDate(TextEditingController controller) async {
+          await _pickDate(context, controller);
+          setDialogState(() {});
+        }
+
+        return _AdminFormSheet(
+          icon: Icons.event_available_outlined,
+          title: 'Create event',
+          subtitle: 'Details, schedule, and first scanner activity',
+          submitLabel: 'Create event',
+          busyLabel: 'Creating...',
+          busy: busy,
+          onCancel: () => Navigator.pop(context, false),
+          onSubmit: busy
+              ? null
+              : () async {
+                  if (!(formKey.currentState?.validate() ?? false)) return;
+                  setDialogState(() => busy = true);
+                  try {
+                    final guests = int.tryParse(invitedGuests.text.trim());
+                    await api.createEvent({
+                      'name': name.text.trim(),
+                      'location': location.text.trim(),
+                      'start_date': startDate.text.trim(),
+                      'end_date': multiDay && endDate.text.trim().isNotEmpty
+                          ? endDate.text.trim()
+                          : null,
+                      'is_multi_day': multiDay,
+                      'invited_guests': guests,
+                      'activities': [
+                        if (activityName.text.trim().isNotEmpty)
+                          {'name': activityName.text.trim()},
+                      ],
+                    });
+                    if (context.mounted) Navigator.pop(context, true);
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(e.toString())));
+                    setDialogState(() => busy = false);
+                  }
+                },
+          child: Form(
+            key: formKey,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextFormField(
-                  controller: name,
-                  decoration: const InputDecoration(
-                    labelText: 'Event name',
-                    prefixIcon: Icon(Icons.event_outlined),
-                  ),
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: location,
-                  decoration: const InputDecoration(
-                    labelText: 'Location',
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                  ),
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: startDate,
-                  decoration: const InputDecoration(
-                    labelText: 'Start date (YYYY-MM-DD)',
-                    prefixIcon: Icon(Icons.calendar_month_outlined),
-                  ),
-                  validator: _dateValidator,
-                ),
-                const SizedBox(height: 12),
-                SwitchListTile.adaptive(
-                  value: multiDay,
-                  onChanged: (value) => setDialogState(() => multiDay = value),
-                  contentPadding: EdgeInsets.zero,
-                  activeThumbColor: brandRed,
-                  title: const Text(
-                    'Multi-day event',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                if (multiDay) ...[
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: endDate,
-                    decoration: const InputDecoration(
-                      labelText: 'End date (YYYY-MM-DD)',
-                      prefixIcon: Icon(Icons.event_available_outlined),
+                _FormSection(
+                  icon: Icons.edit_calendar_outlined,
+                  title: 'Event details',
+                  children: [
+                    TextFormField(
+                      controller: name,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Event name',
+                        prefixIcon: Icon(Icons.event_outlined),
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Required'
+                          : null,
                     ),
-                    validator: (value) {
-                      if (!multiDay || value == null || value.trim().isEmpty) {
-                        return null;
-                      }
-                      return _dateValidator(value);
-                    },
-                  ),
-                ],
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: invitedGuests,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Invited guests',
-                    prefixIcon: Icon(Icons.groups_outlined),
-                  ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: location,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Location',
+                        prefixIcon: Icon(Icons.location_on_outlined),
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Required'
+                          : null,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: activityName,
-                  decoration: const InputDecoration(
-                    labelText: 'First activity',
-                    prefixIcon: Icon(Icons.fact_check_outlined),
-                  ),
+                _FormSection(
+                  icon: Icons.calendar_month_outlined,
+                  title: 'Schedule',
+                  children: [
+                    TextFormField(
+                      controller: startDate,
+                      readOnly: true,
+                      onTap: () => pickDate(startDate),
+                      decoration: InputDecoration(
+                        labelText: 'Start date',
+                        prefixIcon: const Icon(Icons.calendar_today_outlined),
+                        suffixIcon: IconButton(
+                          onPressed: () => pickDate(startDate),
+                          icon: const Icon(Icons.edit_calendar_outlined),
+                          tooltip: 'Choose date',
+                        ),
+                      ),
+                      validator: _dateValidator,
+                    ),
+                    const SizedBox(height: 12),
+                    _SwitchRow(
+                      value: multiDay,
+                      onChanged: (value) => setDialogState(() {
+                        multiDay = value;
+                        if (value && endDate.text.trim().isEmpty) {
+                          endDate.text = startDate.text;
+                        }
+                      }),
+                      icon: Icons.date_range_outlined,
+                      title: 'Multi-day event',
+                    ),
+                    if (multiDay) ...[
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: endDate,
+                        readOnly: true,
+                        onTap: () => pickDate(endDate),
+                        decoration: InputDecoration(
+                          labelText: 'End date',
+                          prefixIcon: const Icon(
+                            Icons.event_available_outlined,
+                          ),
+                          suffixIcon: IconButton(
+                            onPressed: () => pickDate(endDate),
+                            icon: const Icon(Icons.edit_calendar_outlined),
+                            tooltip: 'Choose date',
+                          ),
+                        ),
+                        validator: (value) {
+                          if (!multiDay ||
+                              value == null ||
+                              value.trim().isEmpty) {
+                            return null;
+                          }
+                          return _dateValidator(value);
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _FormSection(
+                  icon: Icons.fact_check_outlined,
+                  title: 'Guest access',
+                  children: [
+                    TextFormField(
+                      controller: invitedGuests,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Invited guests',
+                        prefixIcon: Icon(Icons.groups_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: activityName,
+                      textInputAction: TextInputAction.done,
+                      decoration: const InputDecoration(
+                        labelText: 'First activity',
+                        prefixIcon: Icon(Icons.qr_code_scanner),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: busy ? null : () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: busy
-                ? null
-                : () async {
-                    if (!(formKey.currentState?.validate() ?? false)) return;
-                    setDialogState(() => busy = true);
-                    try {
-                      final guests = int.tryParse(invitedGuests.text.trim());
-                      await api.createEvent({
-                        'name': name.text.trim(),
-                        'location': location.text.trim(),
-                        'start_date': startDate.text.trim(),
-                        'end_date': multiDay && endDate.text.trim().isNotEmpty
-                            ? endDate.text.trim()
-                            : null,
-                        'is_multi_day': multiDay,
-                        'invited_guests': guests,
-                        'activities': [
-                          if (activityName.text.trim().isNotEmpty)
-                            {'name': activityName.text.trim()},
-                        ],
-                      });
-                      if (context.mounted) Navigator.pop(context, true);
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text(e.toString())));
-                      setDialogState(() => busy = false);
-                    }
-                  },
-            child: Text(busy ? 'Creating...' : 'Create'),
-          ),
-        ],
-      ),
+        );
+      },
     ),
   );
 
@@ -2002,179 +2396,300 @@ Future<void> _showUserDialog(
   var scannerEnabled = user?.scannerEnabled ?? true;
   final selectedEventIds = <int>{...(user?.assignedEventIds ?? const [])};
   bool busy = false;
+  bool passwordVisible = false;
 
-  final saved = await showDialog<bool>(
+  final saved = await showModalBottomSheet<bool>(
     context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
     builder: (context) => StatefulBuilder(
-      builder: (context, setDialogState) => AlertDialog(
-        title: Text(user == null ? 'Add user' : 'Edit user'),
-        content: Form(
+      builder: (context, setDialogState) => _AdminFormSheet(
+        icon: user == null ? Icons.person_add_alt_1 : Icons.manage_accounts,
+        title: user == null ? 'Add user' : 'Edit user',
+        subtitle: role == 'admin'
+            ? 'Administrator account'
+            : 'Staff scanner account',
+        submitLabel: user == null ? 'Create user' : 'Save changes',
+        busyLabel: 'Saving...',
+        busy: busy,
+        onCancel: () => Navigator.pop(context, false),
+        onSubmit: busy
+            ? null
+            : () async {
+                if (!(formKey.currentState?.validate() ?? false)) return;
+                setDialogState(() => busy = true);
+                final payload = <String, dynamic>{
+                  'name': name.text.trim(),
+                  'email': email.text.trim().toLowerCase(),
+                  'role': role,
+                  'scanner_enabled': role == 'admin' ? true : scannerEnabled,
+                  'event_ids': role == 'staff'
+                      ? selectedEventIds.toList()
+                      : <int>[],
+                };
+                if (password.text.isNotEmpty) {
+                  payload['password'] = password.text;
+                }
+
+                try {
+                  if (user == null) {
+                    await api.createUser(payload);
+                  } else {
+                    await api.updateUser(user.id, payload);
+                  }
+                  if (context.mounted) Navigator.pop(context, true);
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(e.toString())));
+                  setDialogState(() => busy = false);
+                }
+              },
+        child: Form(
           key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: name,
-                  decoration: const InputDecoration(
-                    labelText: 'Full name',
-                    prefixIcon: Icon(Icons.badge_outlined),
-                  ),
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: email,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.mail_outline),
-                  ),
-                  validator: (value) {
-                    final text = value?.trim() ?? '';
-                    if (text.isEmpty) return 'Required';
-                    return text.contains('@') ? null : 'Enter a valid email';
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: password,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: user == null ? 'Password' : 'New password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                  ),
-                  validator: (value) {
-                    final text = value ?? '';
-                    if (user == null && text.length < 8) {
-                      return 'Minimum 8 characters';
-                    }
-                    if (user != null && text.isNotEmpty && text.length < 8) {
-                      return 'Minimum 8 characters';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                _PickerCard(
-                  label: 'Role',
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: role,
-                      isExpanded: true,
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'staff',
-                          child: Text('Staff scanner'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _FormSection(
+                icon: Icons.account_circle_outlined,
+                title: 'Profile',
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: role == 'admin'
+                            ? brandRed.withValues(alpha: 0.12)
+                            : brandTeal.withValues(alpha: 0.12),
+                        foregroundColor: role == 'admin' ? brandRed : brandTeal,
+                        child: Text(
+                          name.text.trim().isEmpty
+                              ? '?'
+                              : name.text.trim()[0].toUpperCase(),
+                          style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
-                        DropdownMenuItem(
-                          value: 'admin',
-                          child: Text('Administrator'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name.text.trim().isEmpty
+                                  ? 'New user'
+                                  : name.text.trim(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            _Pill(
+                              role == 'admin'
+                                  ? 'Administrator'
+                                  : 'Staff scanner',
+                              color: role == 'admin' ? brandRed : brandTeal,
+                            ),
+                          ],
                         ),
-                      ],
-                      onChanged: (value) =>
-                          setDialogState(() => role = value ?? 'staff'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: name,
+                    textInputAction: TextInputAction.next,
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Full name',
+                      prefixIcon: Icon(Icons.badge_outlined),
                     ),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Required'
+                        : null,
                   ),
-                ),
-                SwitchListTile.adaptive(
-                  value: role == 'admin' ? true : scannerEnabled,
-                  onChanged: role == 'admin'
-                      ? null
-                      : (value) => setDialogState(() => scannerEnabled = value),
-                  contentPadding: EdgeInsets.zero,
-                  activeThumbColor: brandRed,
-                  title: const Text(
-                    'Scanner access',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: email,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.mail_outline),
+                    ),
+                    validator: (value) {
+                      final text = value?.trim() ?? '';
+                      if (text.isEmpty) return 'Required';
+                      return text.contains('@') ? null : 'Enter a valid email';
+                    },
                   ),
-                ),
-                if (role == 'staff') ...[
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Assigned events',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: password,
+                    obscureText: !passwordVisible,
+                    decoration: InputDecoration(
+                      labelText: user == null
+                          ? 'Password'
+                          : 'New password (optional)',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        onPressed: () => setDialogState(
+                          () => passwordVisible = !passwordVisible,
+                        ),
+                        icon: Icon(
+                          passwordVisible
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                        tooltip: passwordVisible
+                            ? 'Hide password'
+                            : 'Show password',
                       ),
                     ),
+                    validator: (value) {
+                      final text = value ?? '';
+                      if (user == null && text.length < 8) {
+                        return 'Minimum 8 characters';
+                      }
+                      if (user != null && text.isNotEmpty && text.length < 8) {
+                        return 'Minimum 8 characters';
+                      }
+                      return null;
+                    },
                   ),
-                  const SizedBox(height: 6),
-                  if (events.isEmpty)
-                    const Text(
-                      'No events available yet.',
-                      style: TextStyle(color: Colors.black54),
-                    )
-                  else
-                    for (final event in events)
-                      CheckboxListTile(
-                        value: selectedEventIds.contains(event.id),
-                        onChanged: (checked) => setDialogState(() {
-                          if (checked == true) {
-                            selectedEventIds.add(event.id);
-                          } else {
-                            selectedEventIds.remove(event.id);
-                          }
-                        }),
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          event.name,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        subtitle: Text(event.startDate),
-                      ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              _FormSection(
+                icon: Icons.admin_panel_settings_outlined,
+                title: 'Access',
+                children: [
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment<String>(
+                        value: 'staff',
+                        icon: Icon(Icons.qr_code_scanner),
+                        label: Text('Staff'),
+                      ),
+                      ButtonSegment<String>(
+                        value: 'admin',
+                        icon: Icon(Icons.admin_panel_settings_outlined),
+                        label: Text('Admin'),
+                      ),
+                    ],
+                    selected: {role},
+                    onSelectionChanged: (selection) => setDialogState(() {
+                      role = selection.first;
+                      if (role == 'admin') scannerEnabled = true;
+                    }),
+                    style: ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      side: WidgetStatePropertyAll(
+                        BorderSide(color: brandNavy.withValues(alpha: 0.16)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _SwitchRow(
+                    value: role == 'admin' ? true : scannerEnabled,
+                    onChanged: role == 'admin'
+                        ? null
+                        : (value) =>
+                              setDialogState(() => scannerEnabled = value),
+                    icon: Icons.qr_code_2_outlined,
+                    title: 'Scanner access',
+                  ),
+                ],
+              ),
+              if (role == 'staff') ...[
+                const SizedBox(height: 12),
+                _FormSection(
+                  icon: Icons.event_available_outlined,
+                  title: 'Event access',
+                  trailing: events.isEmpty
+                      ? null
+                      : _Pill('${selectedEventIds.length} selected'),
+                  children: [
+                    if (events.isEmpty)
+                      _InlineNotice(
+                        icon: Icons.event_busy_outlined,
+                        text: 'No events available yet.',
+                      )
+                    else ...[
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () => setDialogState(() {
+                              selectedEventIds
+                                ..clear()
+                                ..addAll(events.map((event) => event.id));
+                            }),
+                            style: TextButton.styleFrom(
+                              foregroundColor: brandNavy,
+                              minimumSize: const Size(0, 40),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(8),
+                                ),
+                              ),
+                            ),
+                            icon: const Icon(Icons.done_all, size: 18),
+                            label: const Text('All'),
+                          ),
+                          TextButton.icon(
+                            onPressed: selectedEventIds.isEmpty
+                                ? null
+                                : () => setDialogState(selectedEventIds.clear),
+                            style: TextButton.styleFrom(
+                              foregroundColor: brandNavy,
+                              minimumSize: const Size(0, 40),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(8),
+                                ),
+                              ),
+                            ),
+                            icon: const Icon(Icons.clear_all, size: 18),
+                            label: const Text('Clear'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      for (final event in events) ...[
+                        _EventAccessTile(
+                          event: event,
+                          selected: selectedEventIds.contains(event.id),
+                          onChanged: (checked) => setDialogState(() {
+                            if (checked) {
+                              selectedEventIds.add(event.id);
+                            } else {
+                              selectedEventIds.remove(event.id);
+                            }
+                          }),
+                        ),
+                        if (event != events.last) const SizedBox(height: 8),
+                      ],
+                    ],
+                  ],
+                ),
               ],
-            ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: busy ? null : () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: busy
-                ? null
-                : () async {
-                    if (!(formKey.currentState?.validate() ?? false)) return;
-                    setDialogState(() => busy = true);
-                    final payload = <String, dynamic>{
-                      'name': name.text.trim(),
-                      'email': email.text.trim().toLowerCase(),
-                      'role': role,
-                      'scanner_enabled': role == 'admin'
-                          ? true
-                          : scannerEnabled,
-                      'event_ids': role == 'staff'
-                          ? selectedEventIds.toList()
-                          : <int>[],
-                    };
-                    if (password.text.isNotEmpty) {
-                      payload['password'] = password.text;
-                    }
-
-                    try {
-                      if (user == null) {
-                        await api.createUser(payload);
-                      } else {
-                        await api.updateUser(user.id, payload);
-                      }
-                      if (context.mounted) Navigator.pop(context, true);
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text(e.toString())));
-                      setDialogState(() => busy = false);
-                    }
-                  },
-            child: Text(busy ? 'Saving...' : 'Save'),
-          ),
-        ],
       ),
     ),
   );
@@ -2227,11 +2742,52 @@ Future<void> _confirmDeleteUser(
   }
 }
 
+Future<void> _pickDate(
+  BuildContext context,
+  TextEditingController controller,
+) async {
+  final now = DateTime.now();
+  final initialDate = _parseDate(controller.text) ?? now;
+  final picked = await showDatePicker(
+    context: context,
+    initialDate: initialDate,
+    firstDate: DateTime(now.year - 2),
+    lastDate: DateTime(now.year + 8),
+    builder: (context, child) {
+      return Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(
+            context,
+          ).colorScheme.copyWith(primary: brandRed, secondary: brandTeal),
+        ),
+        child: child ?? const SizedBox.shrink(),
+      );
+    },
+  );
+  if (picked != null) {
+    controller.text = _formatDate(picked);
+  }
+}
+
+DateTime? _parseDate(String value) {
+  final text = value.trim();
+  if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(text)) return null;
+  return DateTime.tryParse(text);
+}
+
+String _formatDate(DateTime date) {
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '${date.year}-$month-$day';
+}
+
 String? _dateValidator(String? value) {
   final text = value?.trim() ?? '';
   if (text.isEmpty) return 'Required';
-  final valid = RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(text);
-  return valid ? null : 'Use YYYY-MM-DD';
+  if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(text)) {
+    return 'Use YYYY-MM-DD';
+  }
+  return _parseDate(text) == null ? 'Enter a valid date' : null;
 }
 
 Event? _findEvent(List<Event> events, int? id) {

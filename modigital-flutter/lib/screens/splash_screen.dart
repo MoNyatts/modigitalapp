@@ -22,8 +22,9 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _start() async {
-    final hasSession = await api.loadSession();
-    await Future<void>.delayed(const Duration(milliseconds: 900));
+    final sessionFuture = api.loadSession();
+    await Future<void>.delayed(const Duration(milliseconds: 450));
+    final hasSession = await sessionFuture;
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -41,7 +42,10 @@ class _SplashScreenState extends State<SplashScreen> {
           DecoratedBox(
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/splash-background.jpg'),
+                image: ResizeImage(
+                  AssetImage('assets/images/splash-background.jpg'),
+                  width: 1080,
+                ),
                 fit: BoxFit.cover,
                 alignment: Alignment.center,
               ),

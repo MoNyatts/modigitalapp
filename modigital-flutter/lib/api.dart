@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -15,6 +16,7 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
+  static const _requestTimeout = Duration(seconds: 8);
   static const _tokenKey = 'auth_token';
   static const _nameKey = 'user_name';
   static const _emailKey = 'user_email';
@@ -59,14 +61,28 @@ class ApiClient {
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
 
+  Future<http.Response> _send(Future<http.Response> request) async {
+    try {
+      return await request.timeout(_requestTimeout);
+    } on TimeoutException {
+      throw ApiException(
+        'Connection timed out. Check the API server and try again.',
+      );
+    } on http.ClientException catch (e) {
+      throw ApiException('Could not reach server: ${e.message}');
+    }
+  }
+
   Future<void> login(String email, String password) async {
-    final res = await http.post(
-      Uri.parse('$apiBase/login'),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({'email': email, 'password': password}),
+    final res = await _send(
+      http.post(
+        Uri.parse('$apiBase/login'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'email': email, 'password': password}),
+      ),
     );
 
     final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -80,7 +96,7 @@ class ApiClient {
 
   Future<void> logout() async {
     try {
-      await http.post(Uri.parse('$apiBase/logout'), headers: _headers);
+      await _send(http.post(Uri.parse('$apiBase/logout'), headers: _headers));
     } catch (_) {
       // Token is being discarded anyway.
     }
@@ -96,7 +112,9 @@ class ApiClient {
   }
 
   Future<List<Event>> events() async {
-    final res = await http.get(Uri.parse('$apiBase/events'), headers: _headers);
+    final res = await _send(
+      http.get(Uri.parse('$apiBase/events'), headers: _headers),
+    );
     _ensureOk(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     return (body['events'] as List<dynamic>)
@@ -105,10 +123,12 @@ class ApiClient {
   }
 
   Future<Event> createEvent(Map<String, dynamic> payload) async {
-    final res = await http.post(
-      Uri.parse('$apiBase/events'),
-      headers: _headers,
-      body: jsonEncode(payload),
+    final res = await _send(
+      http.post(
+        Uri.parse('$apiBase/events'),
+        headers: _headers,
+        body: jsonEncode(payload),
+      ),
     );
     _ensureOk(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -116,15 +136,16 @@ class ApiClient {
   }
 
   Future<void> deleteEvent(int eventId) async {
-    final res = await http.delete(
-      Uri.parse('$apiBase/events/$eventId'),
-      headers: _headers,
+    final res = await _send(
+      http.delete(Uri.parse('$apiBase/events/$eventId'), headers: _headers),
     );
     _ensureOk(res);
   }
 
   Future<List<AppUser>> users() async {
-    final res = await http.get(Uri.parse('$apiBase/users'), headers: _headers);
+    final res = await _send(
+      http.get(Uri.parse('$apiBase/users'), headers: _headers),
+    );
     _ensureOk(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     return (body['users'] as List<dynamic>)
@@ -133,10 +154,12 @@ class ApiClient {
   }
 
   Future<AppUser> createUser(Map<String, dynamic> payload) async {
-    final res = await http.post(
-      Uri.parse('$apiBase/users'),
-      headers: _headers,
-      body: jsonEncode(payload),
+    final res = await _send(
+      http.post(
+        Uri.parse('$apiBase/users'),
+        headers: _headers,
+        body: jsonEncode(payload),
+      ),
     );
     _ensureOk(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -144,10 +167,12 @@ class ApiClient {
   }
 
   Future<AppUser> updateUser(int userId, Map<String, dynamic> payload) async {
-    final res = await http.put(
-      Uri.parse('$apiBase/users/$userId'),
-      headers: _headers,
-      body: jsonEncode(payload),
+    final res = await _send(
+      http.put(
+        Uri.parse('$apiBase/users/$userId'),
+        headers: _headers,
+        body: jsonEncode(payload),
+      ),
     );
     _ensureOk(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -155,9 +180,8 @@ class ApiClient {
   }
 
   Future<void> deleteUser(int userId) async {
-    final res = await http.delete(
-      Uri.parse('$apiBase/users/$userId'),
-      headers: _headers,
+    final res = await _send(
+      http.delete(Uri.parse('$apiBase/users/$userId'), headers: _headers),
     );
     _ensureOk(res);
   }
@@ -167,14 +191,16 @@ class ApiClient {
     int activityId, {
     int admissionCount = 1,
   }) async {
-    final res = await http.post(
-      Uri.parse('$apiBase/scan'),
-      headers: _headers,
-      body: jsonEncode({
-        'qr_data': qrData,
-        'activity_id': activityId,
-        'admission_count': admissionCount,
-      }),
+    final res = await _send(
+      http.post(
+        Uri.parse('$apiBase/scan'),
+        headers: _headers,
+        body: jsonEncode({
+          'qr_data': qrData,
+          'activity_id': activityId,
+          'admission_count': admissionCount,
+        }),
+      ),
     );
 
     if (res.statusCode == 200 || res.statusCode == 422) {
@@ -190,9 +216,11 @@ class ApiClient {
   }
 
   Future<Feed> feed(int activityId) async {
-    final res = await http.get(
-      Uri.parse('$apiBase/activities/$activityId/feed'),
-      headers: _headers,
+    final res = await _send(
+      http.get(
+        Uri.parse('$apiBase/activities/$activityId/feed'),
+        headers: _headers,
+      ),
     );
     _ensureOk(res);
     return Feed.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
