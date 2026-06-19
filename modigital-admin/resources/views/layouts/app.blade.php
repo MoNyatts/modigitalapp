@@ -91,7 +91,7 @@
             </nav>
         </header>
 
-        <main class="flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+        <main class="flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-8" data-live-refresh-interval="@yield('live_refresh', auth()->check() ? '20' : '0')">
             <div class="mx-auto max-w-7xl">
                 @if (session('status'))
                     <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
@@ -124,5 +124,52 @@
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    (() => {
+        const page = document.querySelector('[data-live-refresh-interval]');
+        const interval = Number(page?.dataset.liveRefreshInterval || 0);
+        if (!page || !interval) return;
+
+        let lastRefresh = Date.now();
+        let dirtyForms = new WeakSet();
+
+        const isEditable = (element) => element?.matches?.('input, textarea, select, [contenteditable="true"]');
+        const hasOpenDialog = () => Boolean(document.querySelector('dialog[open]'));
+        const hasDirtyForm = () => Array.from(document.forms).some((form) => dirtyForms.has(form));
+        const shouldPause = () => document.hidden || hasOpenDialog() || hasDirtyForm() || isEditable(document.activeElement);
+
+        document.addEventListener('input', (event) => {
+            const form = event.target.closest?.('form');
+            if (form) dirtyForms.add(form);
+        });
+
+        document.addEventListener('change', (event) => {
+            const form = event.target.closest?.('form');
+            if (form) dirtyForms.add(form);
+        });
+
+        document.addEventListener('submit', (event) => {
+            dirtyForms.delete(event.target);
+        });
+
+        document.querySelectorAll('dialog').forEach((dialog) => {
+            dialog.addEventListener('close', () => {
+                dialog.querySelectorAll('form').forEach((form) => dirtyForms.delete(form));
+                lastRefresh = Date.now();
+            });
+        });
+
+        window.setInterval(() => {
+            if (shouldPause()) {
+                lastRefresh = Date.now();
+                return;
+            }
+
+            if (Date.now() - lastRefresh >= interval * 1000) {
+                window.location.reload();
+            }
+        }, 1000);
+    })();
+</script>
 </body>
 </html>

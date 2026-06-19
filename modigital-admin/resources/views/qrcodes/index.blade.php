@@ -14,28 +14,57 @@
         <a href="{{ route('qrcodes.template') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-black text-slate-700 no-underline transition hover:border-red-200 hover:text-red-600">
             <i class="bi bi-file-earmark-spreadsheet"></i> Sample sheet
         </a>
+        <button type="button" onclick="document.getElementById('qr-upload-modal').showModal()" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-black text-slate-700 transition hover:border-red-200 hover:text-red-600">
+            <i class="bi bi-upload"></i> Upload sheet
+        </button>
         <a href="{{ route('qrcodes.download', $event) }}" class="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-3 text-sm font-black text-white no-underline shadow-lg shadow-red-500/20 transition hover:bg-red-600">
             <i class="bi bi-download"></i> Download PNG ZIP
         </a>
     </div>
 </div>
 
-<section class="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-    <form method="POST" action="{{ route('qrcodes.upload', $event) }}" enctype="multipart/form-data" class="grid gap-4 lg:grid-cols-[1fr_220px] lg:items-end">
+<dialog id="qr-upload-modal" class="w-full max-w-2xl rounded-lg p-0 backdrop:bg-slate-950/60">
+    <form method="POST" action="{{ route('qrcodes.upload', $event) }}" enctype="multipart/form-data" class="bg-white">
         @csrf
-        <label class="block">
-            <span class="mb-2 block text-sm font-extrabold text-slate-700">Upload guest sheet (.xlsx, .xls, .csv)</span>
-            <input type="file" name="sheet" accept=".xlsx,.xls,.csv" required
-                   class="h-12 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-200 file:px-3 file:py-2 file:text-sm file:font-black file:text-slate-700">
-            <span class="mt-2 block text-xs font-semibold text-slate-500">
-                Required columns: CODE NO and NAME. Optional column: PHONE. S = single, D = double, M5/M10 = group sizes.
-            </span>
-        </label>
-        <button class="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-red-500 px-4 text-sm font-black text-white shadow-lg shadow-red-500/20 transition hover:bg-red-600">
-            <i class="bi bi-upload"></i> Import sheet
-        </button>
+        <div class="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+            <div>
+                <h2 class="text-xl font-black text-slate-950">Upload guest sheet</h2>
+                <p class="mt-1 text-sm font-semibold text-slate-500">{{ $event->name }}</p>
+            </div>
+            <button type="button" onclick="document.getElementById('qr-upload-modal').close()" class="rounded-lg border border-slate-200 px-3 py-2 text-slate-500 hover:bg-slate-50">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="space-y-4 px-6 py-5">
+            <label class="block">
+                <span class="mb-2 block text-sm font-extrabold text-slate-700">Guest sheet file</span>
+                <input type="file" name="sheet" accept=".xlsx,.xls,.csv" required
+                       class="h-12 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-200 file:px-3 file:py-2 file:text-sm file:font-black file:text-slate-700">
+                <span class="mt-2 block text-xs font-semibold text-slate-500">
+                    Required columns: CODE NO and NAME. Optional column: PHONE. S = single, D = double, M5/M10 = group sizes.
+                </span>
+            </label>
+
+            <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div class="text-sm font-black text-slate-800">Before upload</div>
+                <div class="mt-1 text-sm font-semibold text-slate-500">Download the sample sheet, keep the column names, then upload the completed guest list to generate QR hashes.</div>
+                <a href="{{ route('qrcodes.template') }}" class="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-extrabold text-slate-700 no-underline transition hover:border-red-200 hover:text-red-600">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Download sample sheet
+                </a>
+            </div>
+        </div>
+
+        <footer class="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+            <button type="button" onclick="document.getElementById('qr-upload-modal').close()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-black text-slate-600 hover:bg-white">
+                Cancel
+            </button>
+            <button class="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-red-500/20 transition hover:bg-red-600">
+                <i class="bi bi-upload"></i> Import sheet
+            </button>
+        </footer>
     </form>
-</section>
+</dialog>
 
 <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
     <div class="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

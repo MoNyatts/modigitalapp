@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api.dart';
@@ -13,24 +15,87 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late Future<List<Event>> _events;
+  Timer? _liveRefreshTimer;
   int _tabIndex = 0;
   int? _selectedEventId;
   int? _selectedActivityId;
   int? _selectedReportEventId;
+  bool _appInForeground = true;
+  bool _refreshingEvents = false;
+  DateTime? _lastUpdatedAt;
+  String? _liveRefreshError;
 
   bool get _isAdmin => api.isAdmin;
+  bool get _canAutoRefresh =>
+      _appInForeground && (ModalRoute.of(context)?.isCurrent ?? true);
 
   @override
   void initState() {
     super.initState();
-    _events = api.events();
+    WidgetsBinding.instance.addObserver(this);
+    _events = _fetchEvents();
+    _liveRefreshTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _refresh(silent: true),
+    );
   }
 
-  Future<void> _refresh() async {
-    setState(() => _events = api.events());
-    await _events;
+  @override
+  void dispose() {
+    _liveRefreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appInForeground = state == AppLifecycleState.resumed;
+  }
+
+  Future<List<Event>> _fetchEvents() async {
+    try {
+      final events = await api.events();
+      if (mounted) {
+        setState(() {
+          _lastUpdatedAt = DateTime.now();
+          _liveRefreshError = null;
+        });
+      }
+      return events;
+    } catch (e) {
+      if (mounted) {
+        setState(() => _liveRefreshError = e.toString());
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _refresh({bool silent = false}) async {
+    if (_refreshingEvents || (silent && !_canAutoRefresh)) return;
+
+    _refreshingEvents = true;
+    final future = _fetchEvents();
+    if (!silent) {
+      setState(() {
+        _events = future;
+      });
+    }
+
+    try {
+      final events = await future;
+      if (silent && mounted) {
+        setState(() {
+          _events = Future<List<Event>>.value(events);
+        });
+      }
+    } catch (_) {
+      // Manual refresh errors are shown by FutureBuilder; silent errors keep the
+      // last good data on screen and mark the live chip as offline.
+    } finally {
+      _refreshingEvents = false;
+    }
   }
 
   Future<void> _logout() async {
@@ -76,6 +141,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             actions: [
+              _LiveRefreshChip(
+                error: _liveRefreshError,
+                updatedAt: _lastUpdatedAt,
+              ),
               if (_isAdmin && activeTab.kind == _HomeTabKind.events)
                 Padding(
                   padding: const EdgeInsets.only(right: 10),
@@ -141,6 +210,59 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _LiveRefreshChip extends StatelessWidget {
+  final String? error;
+  final DateTime? updatedAt;
+
+  const _LiveRefreshChip({required this.error, required this.updatedAt});
+
+  @override
+  Widget build(BuildContext context) {
+    final healthy = error == null;
+    final age = updatedAt == null
+        ? null
+        : DateTime.now().difference(updatedAt!).inSeconds;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Tooltip(
+        message: healthy
+            ? age == null
+                  ? 'Waiting for first refresh'
+                  : 'Updated ${age < 1 ? 'now' : '$age seconds ago'}'
+            : error!,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: healthy ? 0.16 : 0.10),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                healthy ? Icons.sync : Icons.sync_problem_outlined,
+                size: 16,
+                color: healthy ? Colors.white : brandGold,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                healthy ? 'Live' : 'Offline',
+                style: TextStyle(
+                  color: healthy ? Colors.white : brandGold,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -632,16 +754,63 @@ class _UsersTab extends StatefulWidget {
 
 class _UsersTabState extends State<_UsersTab> {
   late Future<List<AppUser>> _users;
+  Timer? _liveRefreshTimer;
+  bool _refreshingUsers = false;
+  String? _liveRefreshError;
 
   @override
   void initState() {
     super.initState();
-    _users = api.users();
+    _users = _fetchUsers();
+    _liveRefreshTimer = Timer.periodic(
+      const Duration(seconds: 12),
+      (_) => _refresh(silent: true),
+    );
   }
 
-  Future<void> _refresh() async {
-    setState(() => _users = api.users());
-    await Future.wait([_users, widget.onRefreshEvents()]);
+  @override
+  void dispose() {
+    _liveRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<List<AppUser>> _fetchUsers() async {
+    try {
+      final users = await api.users();
+      if (mounted) setState(() => _liveRefreshError = null);
+      return users;
+    } catch (e) {
+      if (mounted) setState(() => _liveRefreshError = e.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> _refresh({bool silent = false}) async {
+    if (_refreshingUsers) return;
+
+    _refreshingUsers = true;
+    final future = _fetchUsers();
+    if (!silent) {
+      setState(() {
+        _users = future;
+      });
+    }
+
+    try {
+      final users = await future;
+      if (silent && mounted) {
+        setState(() {
+          _users = Future<List<AppUser>>.value(users);
+        });
+      }
+      if (!silent) {
+        await widget.onRefreshEvents();
+      }
+    } catch (_) {
+      // Silent refresh keeps the last good user list visible.
+    } finally {
+      _refreshingUsers = false;
+    }
   }
 
   @override
@@ -673,7 +842,9 @@ class _UsersTabState extends State<_UsersTab> {
             children: [
               _OverviewCard(
                 title: 'User management',
-                subtitle: 'Create scanner accounts and manage admin access',
+                subtitle: _liveRefreshError == null
+                    ? 'Create scanner accounts and manage admin access'
+                    : 'Showing last saved users while reconnecting',
                 stats: [
                   _OverviewStat(
                     Icons.people_outline,
