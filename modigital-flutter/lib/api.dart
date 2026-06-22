@@ -135,6 +135,32 @@ class ApiClient {
     return Event.fromJson(body['event'] as Map<String, dynamic>);
   }
 
+  Future<Activity> createActivity(
+    int eventId,
+    Map<String, dynamic> payload,
+  ) async {
+    final res = await _send(
+      http.post(
+        Uri.parse('$apiBase/events/$eventId/activities'),
+        headers: _headers,
+        body: jsonEncode(payload),
+      ),
+    );
+    _ensureOk(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return Activity.fromJson(body['activity'] as Map<String, dynamic>);
+  }
+
+  Future<void> deleteActivity(int activityId) async {
+    final res = await _send(
+      http.delete(
+        Uri.parse('$apiBase/activities/$activityId'),
+        headers: _headers,
+      ),
+    );
+    _ensureOk(res);
+  }
+
   Future<void> deleteEvent(int eventId) async {
     final res = await _send(
       http.delete(Uri.parse('$apiBase/events/$eventId'), headers: _headers),

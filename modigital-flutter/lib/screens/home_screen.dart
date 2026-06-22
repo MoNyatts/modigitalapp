@@ -429,6 +429,9 @@ class _EventsTab extends StatelessWidget {
         return _EventCard(
           event: event,
           roleLabel: isAdmin ? 'No guest users assigned' : 'Assigned to you',
+          onAddActivity: isAdmin
+              ? () => _showActivityDialog(context, event.id, onRefresh)
+              : null,
         );
       },
     );
@@ -1084,8 +1087,13 @@ class _UserAvatar extends StatelessWidget {
 class _EventCard extends StatelessWidget {
   final Event event;
   final String roleLabel;
+  final VoidCallback? onAddActivity;
 
-  const _EventCard({required this.event, required this.roleLabel});
+  const _EventCard({
+    required this.event,
+    required this.roleLabel,
+    this.onAddActivity,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1194,6 +1202,26 @@ class _EventCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (onAddActivity != null) ...[
+              const SizedBox(height: 4),
+              const Divider(height: 1),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: onAddActivity,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add activity'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: brandNavy,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -2376,6 +2404,215 @@ Future<void> _showEventDialog(
   endDate.dispose();
   invitedGuests.dispose();
   activityName.dispose();
+
+  if (created == true) {
+    await onSaved();
+  }
+}
+
+Future<void> _showActivityDialog(
+  BuildContext context,
+  int eventId,
+  Future<void> Function() onSaved,
+) async {
+  final formKey = GlobalKey<FormState>();
+  final name = TextEditingController();
+  final description = TextEditingController();
+  String? startTime;
+  String? endTime;
+  bool sendWelcomeMessage = false;
+  bool busy = false;
+
+  final created = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        Future<void> pickTime({required bool isStart}) async {
+          final picked = await showTimePicker(
+            context: context,
+            initialTime: TimeOfDay.now(),
+            builder: (context, child) => Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: brandRed,
+                ),
+              ),
+              child: child ?? const SizedBox.shrink(),
+            ),
+          );
+          if (picked != null) {
+            final formatted =
+                '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+            setDialogState(() {
+              if (isStart) {
+                startTime = formatted;
+              } else {
+                endTime = formatted;
+              }
+            });
+          }
+        }
+
+        return _AdminFormSheet(
+          icon: Icons.timeline_outlined,
+          title: 'Add Activity',
+          subtitle: 'Define a scanner checkpoint for this event',
+          submitLabel: 'Save',
+          busyLabel: 'Saving...',
+          busy: busy,
+          onCancel: () => Navigator.pop(context, false),
+          onSubmit: busy
+              ? null
+              : () async {
+                  if (!(formKey.currentState?.validate() ?? false)) return;
+                  setDialogState(() => busy = true);
+                  try {
+                    await api.createActivity(eventId, {
+                      'name': name.text.trim(),
+                      if (description.text.trim().isNotEmpty)
+                        'description': description.text.trim(),
+                      'start_time': startTime,
+                      'end_time': endTime,
+                      'send_welcome_message': sendWelcomeMessage,
+                    });
+                    if (context.mounted) Navigator.pop(context, true);
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                    setDialogState(() => busy = false);
+                  }
+                },
+          child: Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _FormSection(
+                  icon: Icons.edit_outlined,
+                  title: 'Activity details',
+                  children: [
+                    TextFormField(
+                      controller: name,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Activity Name *',
+                        prefixIcon: Icon(Icons.label_outline),
+                      ),
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                              ? 'Required'
+                              : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: description,
+                      maxLines: 3,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        hintText: 'Activity description',
+                        prefixIcon: Icon(Icons.notes_outlined),
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _FormSection(
+                  icon: Icons.access_time_outlined,
+                  title: 'Schedule',
+                  children: [
+                    // Start Time
+                    InkWell(
+                      onTap: () => pickTime(isStart: true),
+                      borderRadius: BorderRadius.circular(8),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Start Time *',
+                          prefixIcon: Icon(Icons.schedule_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              startTime ?? '-- : --',
+                              style: TextStyle(
+                                color: startTime == null
+                                    ? Colors.black45
+                                    : Colors.black87,
+                              ),
+                            ),
+                            const Icon(
+                              Icons.arrow_drop_down,
+                              color: Colors.black45,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // End Time
+                    InkWell(
+                      onTap: () => pickTime(isStart: false),
+                      borderRadius: BorderRadius.circular(8),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'End Time',
+                          prefixIcon: Icon(Icons.schedule_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              endTime ?? '-- : --',
+                              style: TextStyle(
+                                color: endTime == null
+                                    ? Colors.black45
+                                    : Colors.black87,
+                              ),
+                            ),
+                            const Icon(
+                              Icons.arrow_drop_down,
+                              color: Colors.black45,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _FormSection(
+                  icon: Icons.mark_email_read_outlined,
+                  title: 'Send Welcome Message',
+                  children: [
+                    _SwitchRow(
+                      value: sendWelcomeMessage,
+                      onChanged: (v) =>
+                          setDialogState(() => sendWelcomeMessage = v),
+                      icon: Icons.email_outlined,
+                      title: 'Automatically send a welcome message to guests'
+                          ' when they scan their QR code',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
+
+  name.dispose();
+  description.dispose();
 
   if (created == true) {
     await onSaved();
