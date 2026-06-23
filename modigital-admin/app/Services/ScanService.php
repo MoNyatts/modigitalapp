@@ -33,29 +33,41 @@ class ScanService
         $qrData = trim($qrData);
 
         return DB::transaction(function () use ($qrData, $activity, $scanner, $admissionCount, $notes) {
+            $now = now();
+            $event = $activity->event;
+
+            if ($event && ($opensAt = $event->opensAt()) && $now->lt($opensAt)) {
+                $formatted = $opensAt->format('d M Y \a\t H:i');
+                return $this->result(false, "Event opens on {$formatted}", null, 0, 0);
+            }
+
+            if ($event && ($closesAt = $event->closesAt()) && $now->gt($closesAt)) {
+                return $this->result(false, 'This event has ended', null, 0, 0);
+            }
+
             $qrCode = $this->resolveAndLock($qrData, $activity->event_id);
 
             if (!$qrCode) {
-                $this->reject($qrData, null, $activity, $scanner, $admissionCount, 'QR code not found for this event');
-                return $this->result(false, 'QR code not found for this event', null, 0, 0);
+                $this->reject($qrData, null, $activity, $scanner, $admissionCount, 'Card not found for this event');
+                return $this->result(false, 'Card not found for this event', null, 0, 0);
             }
 
             if (!$qrCode->is_valid) {
-                $this->reject($qrData, $qrCode->id, $activity, $scanner, $admissionCount, 'QR code has been invalidated');
-                return $this->result(false, 'QR code has been invalidated', $qrCode->guest_name, 0, $qrCode->max_admissions);
+                $this->reject($qrData, $qrCode->id, $activity, $scanner, $admissionCount, 'Card has been invalidated');
+                return $this->result(false, 'Card has been invalidated', $qrCode->guest_name, 0, $qrCode->max_admissions);
             }
 
             $used = $qrCode->usedForActivity($activity->id);
             $remaining = $qrCode->max_admissions - $used;
 
             if ($remaining <= 0) {
-                $this->reject($qrData, $qrCode->id, $activity, $scanner, $admissionCount, 'Code already fully used');
-                return $this->result(false, "Already used — all {$qrCode->max_admissions} admission(s) consumed", $qrCode->guest_name, 0, $qrCode->max_admissions);
+                $this->reject($qrData, $qrCode->id, $activity, $scanner, $admissionCount, 'Card already fully used');
+                return $this->result(false, "Card already used — all {$qrCode->max_admissions} admission(s) consumed", $qrCode->guest_name, 0, $qrCode->max_admissions);
             }
 
             if ($admissionCount > $remaining) {
                 $this->reject($qrData, $qrCode->id, $activity, $scanner, $admissionCount, "Only {$remaining} admission(s) remaining");
-                return $this->result(false, "Only {$remaining} admission(s) remaining on this code", $qrCode->guest_name, $remaining, $qrCode->max_admissions);
+                return $this->result(false, "Only {$remaining} admission(s) remaining on this card", $qrCode->guest_name, $remaining, $qrCode->max_admissions);
             }
 
             $scan = Scan::create([
@@ -83,7 +95,7 @@ class ScanService
         $qrCode = $this->resolve(trim($qrData), $activity->event_id);
 
         if (!$qrCode) {
-            return ['found' => false, 'message' => 'QR code not found for this event'];
+            return ['found' => false, 'message' => 'Card not found for this event'];
         }
 
         $used = $qrCode->usedForActivity($activity->id);

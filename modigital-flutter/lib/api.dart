@@ -28,6 +28,7 @@ class ApiClient {
   String? userRole;
 
   bool get isAdmin => userRole == 'admin';
+  bool get isGuest => userRole == 'guest';
 
   Future<bool> loadSession() async {
     final prefs = await SharedPreferences.getInstance();

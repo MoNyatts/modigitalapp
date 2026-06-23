@@ -165,7 +165,7 @@ class _ConfirmAdmissionScreenState extends State<ConfirmAdmissionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'QR Code:',
+                    'Card:',
                     style: TextStyle(
                       color: Colors.blue.shade700,
                       fontSize: 13,

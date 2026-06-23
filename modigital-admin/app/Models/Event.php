@@ -12,7 +12,8 @@ class Event extends Model
 {
     protected $fillable = [
         'name', 'description', 'location', 'is_multi_day',
-        'start_date', 'end_date', 'invited_guests', 'created_by',
+        'start_date', 'start_time', 'end_date', 'end_time',
+        'invited_guests', 'created_by',
     ];
 
     protected function casts(): array
@@ -22,6 +23,32 @@ class Event extends Model
             'start_date' => 'date',
             'end_date' => 'date',
         ];
+    }
+
+    /** Returns the datetime at which this event opens for scanning, or null if no restriction. */
+    public function opensAt(): ?\Carbon\Carbon
+    {
+        if (!$this->start_date) {
+            return null;
+        }
+
+        $date = $this->start_date->toDateString();
+        $time = $this->start_time ?? '00:00:00';
+
+        return \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', "$date $time");
+    }
+
+    /** Returns the datetime after which scanning closes, or null if no restriction. */
+    public function closesAt(): ?\Carbon\Carbon
+    {
+        if (!$this->end_date && !$this->end_time) {
+            return null;
+        }
+
+        $date = ($this->end_date ?? $this->start_date)->toDateString();
+        $time = $this->end_time ?? '23:59:59';
+
+        return \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', "$date $time");
     }
 
     public function activities(): HasMany

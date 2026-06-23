@@ -230,7 +230,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                         child: Row(
                           children: [
                             const Text(
-                              'Scan QR Code',
+                              'Scan Card',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
@@ -283,7 +283,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                                 ),
                               ),
                               const Text(
-                                'QR Code *',
+                                'Card Code *',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13,
@@ -296,7 +296,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                                     TextCapitalization.characters,
                                 autofocus: true,
                                 decoration: const InputDecoration(
-                                  hintText: 'Enter QR code (S123, D456, M30)',
+                                  hintText: 'Enter card code (S123, D456, M30)',
                                   border: OutlineInputBorder(),
                                 ),
                                 onChanged: (_) => setSheetState(() {}),
@@ -370,7 +370,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'QR Code Types:',
+                                      'Card Types:',
                                       style:
                                           TextStyle(fontWeight: FontWeight.w800),
                                     ),

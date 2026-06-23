@@ -6,6 +6,7 @@
         ['label' => 'Events', 'route' => 'events.index', 'match' => ['events.*', 'qrcodes.*'], 'icon' => 'bi-calendar-event'],
         ['label' => 'Users', 'route' => 'users.index', 'match' => 'users.*', 'icon' => 'bi-people'],
         ['label' => 'Reports', 'route' => 'reports.index', 'match' => 'reports.*', 'icon' => 'bi-bar-chart'],
+        ['label' => 'Messaging', 'route' => 'communication.messages', 'match' => 'communication.*', 'icon' => 'bi-send'],
     ];
 @endphp
 <!DOCTYPE html>

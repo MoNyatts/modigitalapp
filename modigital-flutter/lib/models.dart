@@ -42,7 +42,11 @@ class Event {
   final String name;
   final String location;
   final String startDate;
+  final String? startTime;
   final String? endDate;
+  final String? endTime;
+  final DateTime? opensAt;
+  final DateTime? closesAt;
   final bool isMultiDay;
   final int invitedGuests;
   final int qrCodesCount;
@@ -57,7 +61,11 @@ class Event {
     required this.name,
     required this.location,
     required this.startDate,
+    this.startTime,
     this.endDate,
+    this.endTime,
+    this.opensAt,
+    this.closesAt,
     this.isMultiDay = false,
     this.invitedGuests = 0,
     this.qrCodesCount = 0,
@@ -68,12 +76,30 @@ class Event {
     required this.activities,
   });
 
+  bool get hasNotStarted {
+    if (opensAt == null) return false;
+    return DateTime.now().isBefore(opensAt!);
+  }
+
+  bool get hasEnded {
+    if (closesAt == null) return false;
+    return DateTime.now().isAfter(closesAt!);
+  }
+
   factory Event.fromJson(Map<String, dynamic> json) => Event(
     id: json['id'] as int,
     name: json['name'] as String,
     location: json['location'] as String? ?? '',
     startDate: json['start_date'] as String,
+    startTime: json['start_time'] as String?,
     endDate: json['end_date'] as String?,
+    endTime: json['end_time'] as String?,
+    opensAt: json['opens_at'] != null
+        ? DateTime.tryParse(json['opens_at'] as String)
+        : null,
+    closesAt: json['closes_at'] != null
+        ? DateTime.tryParse(json['closes_at'] as String)
+        : null,
     isMultiDay: json['is_multi_day'] as bool? ?? false,
     invitedGuests: json['invited_guests'] as int? ?? 0,
     qrCodesCount: json['qr_codes_count'] as int? ?? 0,
@@ -109,6 +135,7 @@ class AppUser {
   });
 
   bool get isAdmin => role == 'admin';
+  bool get isGuest => role == 'guest';
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
     id: json['id'] as int,

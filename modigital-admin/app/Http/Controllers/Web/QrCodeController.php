@@ -54,7 +54,7 @@ class QrCodeController extends Controller
             'outputBase64' => false,
             'eccLevel' => EccLevel::M,
             'scale' => 10,
-            'quietzoneSize' => 4,
+            'quietzoneSize' => 0,
         ]);
 
         $usedNames = [];
@@ -106,6 +106,6 @@ class QrCodeController extends Controller
         abort_unless($qrCode->event_id === $event->id, 404);
         $qrCode->update(['is_valid' => !$qrCode->is_valid]);
 
-        return back()->with('status', $qrCode->is_valid ? 'QR code re-validated.' : 'QR code invalidated.');
+        return back()->with('status', $qrCode->is_valid ? 'Card re-validated.' : 'Card invalidated.');
     }
 }

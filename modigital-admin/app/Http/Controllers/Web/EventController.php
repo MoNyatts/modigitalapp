@@ -46,7 +46,7 @@ class EventController extends Controller
             'rejections' => RejectedScan::whereHas('activity', fn ($query) => $query->where('event_id', $event->id))->count(),
         ];
 
-        $staff = \App\Models\User::where('role', 'staff')->orderBy('name')->get();
+        $staff = \App\Models\User::whereIn('role', ['staff', 'guest'])->orderBy('name')->get();
 
         return view('events.show', compact('event', 'stats', 'staff'));
     }
@@ -86,7 +86,9 @@ class EventController extends Controller
             'location' => ['required', 'string', 'max:255'],
             'is_multi_day' => ['sometimes', 'boolean'],
             'start_date' => ['required', 'date'],
+            'start_time' => ['nullable', 'date_format:H:i'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'end_time' => ['nullable', 'date_format:H:i'],
             'invited_guests' => ['nullable', 'integer', 'min:0'],
         ]) + ['is_multi_day' => $request->boolean('is_multi_day')];
     }

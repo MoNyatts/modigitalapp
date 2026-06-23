@@ -65,6 +65,7 @@
                         <span class="mb-2 block text-sm font-extrabold text-slate-700">Role</span>
                         <select name="role" class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-100">
                             <option value="staff" {{ old('role', $user->role ?: 'staff') === 'staff' ? 'selected' : '' }}>Staff scanner</option>
+                            <option value="guest" {{ old('role', $user->role) === 'guest' ? 'selected' : '' }}>Guest</option>
                             <option value="admin" {{ old('role', $user->role) === 'admin' ? 'selected' : '' }}>Admin</option>
                         </select>
                     </label>

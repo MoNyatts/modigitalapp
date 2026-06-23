@@ -107,12 +107,16 @@
                             <td class="px-5 py-4 text-right text-sm font-black text-amber-700">{{ $activity->rejected_scans_count }}</td>
                             <td class="px-5 py-4">
                                 <div class="flex justify-end gap-2">
-                                    <button type="button" onclick="document.getElementById('activity-edit-{{ $activity->id }}').showModal()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-extrabold text-slate-700 hover:border-red-200 hover:text-red-600">
+                                    <button type="button" onclick="document.getElementById('activity-edit-{{ $activity->id }}').showModal()" class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-extrabold text-slate-700 hover:border-red-200 hover:text-red-600" title="Edit">
                                         <i class="bi bi-pencil"></i>
                                     </button>
+                                    <form method="POST" action="{{ route('activities.duplicate', [$event, $activity]) }}">
+                                        @csrf
+                                        <button class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-extrabold text-slate-700 hover:border-teal-300 hover:text-teal-700" title="Duplicate"><i class="bi bi-copy"></i></button>
+                                    </form>
                                     <form method="POST" action="{{ route('activities.destroy', [$event, $activity]) }}" onsubmit="return confirm('Delete this activity and its scan history?');">
                                         @csrf @method('DELETE')
-                                        <button class="rounded-lg border border-red-200 px-3 py-2 text-sm font-extrabold text-red-600 hover:bg-red-50"><i class="bi bi-trash"></i></button>
+                                        <button class="rounded-lg border border-red-200 px-3 py-2 text-sm font-extrabold text-red-600 hover:bg-red-50" title="Delete"><i class="bi bi-trash"></i></button>
                                     </form>
                                 </div>
                             </td>

@@ -108,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = _isAdmin ? _adminTabs : _staffTabs;
+    final tabs = _isAdmin ? _adminTabs : (api.isGuest ? _guestTabs : _staffTabs);
     final activeTab = tabs[_tabIndex.clamp(0, tabs.length - 1)];
 
     return FutureBuilder<List<Event>>(
@@ -460,7 +460,31 @@ class _ScannerTab extends StatelessWidget {
     final activities = selectedEvent?.activities ?? const <Activity>[];
     final selectedActivity =
         _findActivity(activities, selectedActivityId) ?? activities.firstOrNull;
-    final canScan = selectedEvent != null && selectedActivity != null;
+    final eventNotStarted = selectedEvent?.hasNotStarted ?? false;
+    final eventEnded = selectedEvent?.hasEnded ?? false;
+    final canScan = selectedEvent != null &&
+        selectedActivity != null &&
+        !eventNotStarted &&
+        !eventEnded;
+
+    String scannerStatusText;
+    String scannerSubText;
+    if (selectedEvent == null || selectedActivity == null) {
+      scannerStatusText = 'Scanner setup';
+      scannerSubText = 'Select an event and activity to start scanning cards.';
+    } else if (eventNotStarted) {
+      final opensAt = selectedEvent.opensAt!.toLocal();
+      final formatted =
+          '${opensAt.day.toString().padLeft(2, '0')} / ${opensAt.month.toString().padLeft(2, '0')} / ${opensAt.year}  ${opensAt.hour.toString().padLeft(2, '0')}:${opensAt.minute.toString().padLeft(2, '0')}';
+      scannerStatusText = 'Event not started';
+      scannerSubText = 'Scanner opens on $formatted';
+    } else if (eventEnded) {
+      scannerStatusText = 'Event ended';
+      scannerSubText = 'This event has closed.';
+    } else {
+      scannerStatusText = 'Ready to scan';
+      scannerSubText = 'Checking in guests for ${selectedActivity.name}';
+    }
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -505,33 +529,53 @@ class _ScannerTab extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Card(
-          color: canScan ? brandNavy : Colors.white,
+          color: canScan
+              ? brandNavy
+              : eventNotStarted || eventEnded
+                  ? Colors.amber.shade50
+                  : Colors.white,
           child: Padding(
             padding: const EdgeInsets.all(18),
             child: Column(
               children: [
                 Icon(
-                  Icons.qr_code_scanner,
+                  canScan
+                      ? Icons.qr_code_scanner
+                      : eventNotStarted
+                          ? Icons.schedule_outlined
+                          : eventEnded
+                              ? Icons.event_busy_outlined
+                              : Icons.qr_code_scanner,
                   size: 64,
-                  color: canScan ? Colors.white : Colors.grey.shade300,
+                  color: canScan
+                      ? Colors.white
+                      : eventNotStarted || eventEnded
+                          ? Colors.amber.shade700
+                          : Colors.grey.shade300,
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  canScan ? 'Ready to scan' : 'Scanner setup',
+                  scannerStatusText,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: canScan ? Colors.white : brandNavy,
+                    color: canScan
+                        ? Colors.white
+                        : eventNotStarted || eventEnded
+                            ? Colors.amber.shade800
+                            : brandNavy,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  canScan
-                      ? 'Checking in guests for ${selectedActivity.name}'
-                      : 'Select an event and activity to start scanning QR codes.',
+                  scannerSubText,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: canScan ? Colors.white70 : Colors.black54,
+                    color: canScan
+                        ? Colors.white70
+                        : eventNotStarted || eventEnded
+                            ? Colors.amber.shade700
+                            : Colors.black54,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
@@ -929,8 +973,8 @@ class _ProfileTab extends StatelessWidget {
           email: api.userEmail?.isNotEmpty == true
               ? api.userEmail!
               : 'No email available',
-          role: api.isAdmin ? 'Administrator' : 'Scanner',
-          roleColor: api.isAdmin ? Colors.green : brandGold,
+          role: api.isAdmin ? 'Administrator' : api.isGuest ? 'Guest' : 'Scanner',
+          roleColor: api.isAdmin ? Colors.green : api.isGuest ? brandGold : brandTeal,
         ),
         const SizedBox(height: 28),
         const Text(
@@ -1005,16 +1049,18 @@ class _AdminUserCard extends StatelessWidget {
               runSpacing: 6,
               children: [
                 _Pill(
-                  user.isAdmin ? 'Admin' : 'Staff',
-                  color: user.isAdmin ? brandRed : brandTeal,
+                  user.isAdmin ? 'Admin' : user.isGuest ? 'Guest' : 'Staff',
+                  color: user.isAdmin ? brandRed : user.isGuest ? brandGold : brandTeal,
                 ),
                 _Pill(
                   user.isAdmin
                       ? 'Scanner enabled'
-                      : user.scannerEnabled
-                      ? 'Scanner on'
-                      : 'Scanner off',
-                  color: user.scannerEnabled || user.isAdmin
+                      : user.isGuest
+                          ? 'No scanner'
+                          : user.scannerEnabled
+                              ? 'Scanner on'
+                              : 'Scanner off',
+                  color: (user.scannerEnabled || user.isAdmin) && !user.isGuest
                       ? Colors.green
                       : brandDarkRed,
                 ),
@@ -2646,7 +2692,9 @@ Future<void> _showUserDialog(
         title: user == null ? 'Add user' : 'Edit user',
         subtitle: role == 'admin'
             ? 'Administrator account'
-            : 'Staff scanner account',
+            : role == 'guest'
+                ? 'Guest — Events, Reports & Profile'
+                : 'Staff scanner account',
         submitLabel: user == null ? 'Create user' : 'Save changes',
         busyLabel: 'Saving...',
         busy: busy,
@@ -2661,7 +2709,7 @@ Future<void> _showUserDialog(
                   'email': email.text.trim().toLowerCase(),
                   'role': role,
                   'scanner_enabled': role == 'admin' ? true : scannerEnabled,
-                  'event_ids': role == 'staff'
+                  'event_ids': (role == 'staff' || role == 'guest')
                       ? selectedEventIds.toList()
                       : <int>[],
                 };
@@ -2728,8 +2776,14 @@ Future<void> _showUserDialog(
                             _Pill(
                               role == 'admin'
                                   ? 'Administrator'
-                                  : 'Staff scanner',
-                              color: role == 'admin' ? brandRed : brandTeal,
+                                  : role == 'guest'
+                                      ? 'Guest'
+                                      : 'Staff scanner',
+                              color: role == 'admin'
+                                  ? brandRed
+                                  : role == 'guest'
+                                      ? brandGold
+                                      : brandTeal,
                             ),
                           ],
                         ),
@@ -2813,6 +2867,11 @@ Future<void> _showUserDialog(
                         label: Text('Staff'),
                       ),
                       ButtonSegment<String>(
+                        value: 'guest',
+                        icon: Icon(Icons.person_outline),
+                        label: Text('Guest'),
+                      ),
+                      ButtonSegment<String>(
                         value: 'admin',
                         icon: Icon(Icons.admin_panel_settings_outlined),
                         label: Text('Admin'),
@@ -2822,6 +2881,7 @@ Future<void> _showUserDialog(
                     onSelectionChanged: (selection) => setDialogState(() {
                       role = selection.first;
                       if (role == 'admin') scannerEnabled = true;
+                      if (role == 'guest') scannerEnabled = false;
                     }),
                     style: ButtonStyle(
                       visualDensity: VisualDensity.compact,
@@ -2832,8 +2892,8 @@ Future<void> _showUserDialog(
                   ),
                   const SizedBox(height: 12),
                   _SwitchRow(
-                    value: role == 'admin' ? true : scannerEnabled,
-                    onChanged: role == 'admin'
+                    value: role == 'admin' ? true : (role == 'guest' ? false : scannerEnabled),
+                    onChanged: (role == 'admin' || role == 'guest')
                         ? null
                         : (value) =>
                               setDialogState(() => scannerEnabled = value),
@@ -2842,7 +2902,7 @@ Future<void> _showUserDialog(
                   ),
                 ],
               ),
-              if (role == 'staff') ...[
+              if (role == 'staff' || role == 'guest') ...[
                 const SizedBox(height: 12),
                 _FormSection(
                   icon: Icons.event_available_outlined,
@@ -3092,9 +3152,20 @@ const _staffTabs = [
   _HomeTab(
     _HomeTabKind.scanner,
     'Scanner',
-    'QR Scanner',
+    'Scanner',
     Icons.qr_code_scanner,
   ),
   _HomeTab(_HomeTabKind.reports, 'Reports', 'Reports', Icons.bar_chart),
   _HomeTab(_HomeTabKind.profile, 'Profile', 'Profile', Icons.group_outlined),
+];
+
+const _guestTabs = [
+  _HomeTab(
+    _HomeTabKind.events,
+    'Events',
+    'Events',
+    Icons.calendar_month_outlined,
+  ),
+  _HomeTab(_HomeTabKind.reports, 'Reports', 'Reports', Icons.bar_chart),
+  _HomeTab(_HomeTabKind.profile, 'Profile', 'Profile', Icons.person_outline),
 ];

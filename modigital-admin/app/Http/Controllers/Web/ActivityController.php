@@ -24,6 +24,22 @@ class ActivityController extends Controller
         return back()->with('status', 'Activity updated.');
     }
 
+    public function duplicate(Event $event, Activity $activity)
+    {
+        abort_unless($activity->event_id === $event->id, 404);
+
+        $event->activities()->create([
+            'name' => $activity->name . ' (copy)',
+            'description' => $activity->description,
+            'day' => $activity->day,
+            'start_time' => $activity->start_time,
+            'end_time' => $activity->end_time,
+            'is_active' => true,
+        ]);
+
+        return back()->with('status', 'Activity duplicated.');
+    }
+
     public function destroy(Event $event, Activity $activity)
     {
         abort_unless($activity->event_id === $event->id, 404);

@@ -32,8 +32,17 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    public function isGuest(): bool
+    {
+        return $this->role === 'guest';
+    }
+
     public function canScan(): bool
     {
+        if ($this->isGuest()) {
+            return false;
+        }
+
         return $this->isAdmin() || $this->scanner_enabled;
     }
 

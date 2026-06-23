@@ -82,7 +82,7 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($user?->id)],
             'password' => [$user ? 'nullable' : 'required', 'string', 'min:8'],
-            'role' => ['required', Rule::in(['admin', 'staff'])],
+            'role' => ['required', Rule::in(['admin', 'staff', 'guest'])],
             'scanner_enabled' => ['sometimes', 'boolean'],
             'event_ids' => ['sometimes', 'array'],
             'event_ids.*' => ['integer', 'exists:events,id'],

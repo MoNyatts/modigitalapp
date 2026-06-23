@@ -41,6 +41,11 @@
                            class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-100">
                 </label>
                 <label class="block">
+                    <span class="mb-2 block text-sm font-extrabold text-slate-700">Start time</span>
+                    <input type="time" name="start_time" value="{{ old('start_time', $event->start_time ? substr($event->start_time, 0, 5) : null) }}"
+                           class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-100">
+                </label>
+                <label class="block" id="{{ $dialogId }}-enddate-wrap" style="{{ old('is_multi_day', $event->is_multi_day) ? '' : 'display:none' }}">
                     <span class="mb-2 block text-sm font-extrabold text-slate-700">End date</span>
                     <input type="date" name="end_date" value="{{ old('end_date', $event->end_date?->toDateString()) }}"
                            class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-100">
@@ -55,9 +60,19 @@
             <label class="flex items-center gap-2 text-sm font-extrabold text-slate-700">
                 <input type="hidden" name="is_multi_day" value="0">
                 <input type="checkbox" name="is_multi_day" value="1" class="rounded border-slate-300"
+                       id="{{ $dialogId }}-multiday"
                        {{ old('is_multi_day', $event->is_multi_day) ? 'checked' : '' }}>
                 Multi-day event
             </label>
+            <script>
+                (function(){
+                    var cb = document.getElementById('{{ $dialogId }}-multiday');
+                    var wrap = document.getElementById('{{ $dialogId }}-enddate-wrap');
+                    if(cb && wrap){
+                        cb.addEventListener('change', function(){ wrap.style.display = this.checked ? '' : 'none'; });
+                    }
+                })();
+            </script>
         </div>
 
         <footer class="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
