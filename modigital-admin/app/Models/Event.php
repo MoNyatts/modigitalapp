@@ -13,7 +13,7 @@ class Event extends Model
     protected $fillable = [
         'name', 'description', 'location', 'is_multi_day',
         'start_date', 'start_time', 'end_date', 'end_time',
-        'invited_guests', 'created_by',
+        'created_by',
     ];
 
     protected function casts(): array

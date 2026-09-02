@@ -69,7 +69,7 @@
                     <tr class="hover:bg-slate-50">
                         <td class="px-5 py-4">
                             <a href="{{ route('events.show', $event) }}" class="font-black text-slate-900 no-underline hover:text-red-600">{{ $event->name }}</a>
-                            <div class="text-xs font-semibold text-slate-400">{{ $event->invited_guests ?: 0 }} invited guests</div>
+                            <div class="text-xs font-semibold text-slate-400">{{ (int) $event->guest_count }} guests from QR capacity</div>
                         </td>
                         <td class="px-5 py-4 text-sm font-semibold text-slate-600">{{ $event->location }}</td>
                         <td class="px-5 py-4">

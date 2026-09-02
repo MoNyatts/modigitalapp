@@ -6,7 +6,7 @@
     $maxEventAdmissions = max(1, $eventPerformance->max('admissions') ?? 1);
     $stats = [
         ['label' => 'Events', 'value' => $eventCount, 'icon' => 'bi-calendar-event', 'tone' => 'bg-red-50 text-red-600 ring-red-100'],
-        ['label' => 'QR Codes', 'value' => $guestCount, 'icon' => 'bi-qr-code', 'tone' => 'bg-slate-100 text-slate-700 ring-slate-200'],
+        ['label' => 'Guest capacity', 'value' => $guestCount, 'icon' => 'bi-people', 'tone' => 'bg-slate-100 text-slate-700 ring-slate-200'],
         ['label' => 'Admissions today', 'value' => $admissionsToday, 'hint' => $admissionsTotal . ' total', 'icon' => 'bi-person-check', 'tone' => 'bg-emerald-50 text-emerald-700 ring-emerald-100'],
         ['label' => 'Rejections today', 'value' => $rejectionsToday, 'icon' => 'bi-x-octagon', 'tone' => 'bg-amber-50 text-amber-700 ring-amber-100'],
     ];
@@ -81,7 +81,7 @@
                     <div class="h-3 overflow-hidden rounded-lg bg-slate-100">
                         <div class="h-full rounded-lg bg-emerald-500" style="width: {{ $width }}%"></div>
                     </div>
-                    <div class="mt-1 text-xs font-bold text-slate-400">{{ $event['qr_codes'] }} QR codes</div>
+                    <div class="mt-1 text-xs font-bold text-slate-400">{{ $event['guest_count'] }} guests across {{ $event['qr_codes'] }} QR codes</div>
                 </div>
             @empty
                 <div class="rounded-lg bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">No event data yet.</div>

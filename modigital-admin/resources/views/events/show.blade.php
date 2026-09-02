@@ -2,7 +2,7 @@
 @section('title', $event->name)
 @section('content')
 @php
-    $capacity = $event->invited_guests ?: max(1, $stats['qr_count']);
+    $capacity = max(1, $stats['guest_count']);
     $progress = $capacity ? min(100, round(($stats['admissions'] / $capacity) * 100)) : 0;
     $statCards = [
         ['label' => 'Admissions', 'value' => $stats['admissions'], 'tone' => 'bg-emerald-50 text-emerald-700', 'icon' => 'bi-person-check'],
@@ -45,7 +45,7 @@
             <div class="mt-3 h-3 overflow-hidden rounded-lg bg-white/10">
                 <div class="h-full rounded-lg bg-red-500" style="width: {{ $progress }}%"></div>
             </div>
-            <p class="mt-3 text-sm font-bold text-white/70">{{ $stats['admissions'] }} admissions@if ($event->invited_guests) of {{ $event->invited_guests }} invited guests@endif</p>
+            <p class="mt-3 text-sm font-bold text-white/70">{{ $stats['admissions'] }} admissions of {{ $stats['guest_count'] }} guests from QR capacity</p>
         </div>
         <div class="rounded-lg border border-white/10 bg-white/10 p-4">
             <div class="text-4xl font-black">{{ $progress }}%</div>

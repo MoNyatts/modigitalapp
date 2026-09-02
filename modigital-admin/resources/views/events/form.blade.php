@@ -8,7 +8,7 @@
         <div class="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
             <div>
                 <h2 class="text-xl font-black text-slate-950">{{ $isEdit ? 'Edit event' : 'Create event' }}</h2>
-                <p class="mt-1 text-sm font-semibold text-slate-500">{{ $isEdit ? $event->name : 'Add event details and expected guest count.' }}</p>
+                <p class="mt-1 text-sm font-semibold text-slate-500">{{ $isEdit ? $event->name : 'Add event details. Guest capacity is calculated from uploaded QR codes.' }}</p>
             </div>
             <button type="button" onclick="document.getElementById('{{ $dialogId }}').close()" class="rounded-lg border border-slate-200 px-3 py-2 text-slate-500 hover:bg-slate-50">
                 <i class="bi bi-x-lg"></i>
@@ -50,11 +50,11 @@
                     <input type="date" name="end_date" value="{{ old('end_date', $event->end_date?->toDateString()) }}"
                            class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-100">
                 </label>
-                <label class="block">
-                    <span class="mb-2 block text-sm font-extrabold text-slate-700">Invited guests</span>
-                    <input type="number" name="invited_guests" min="0" value="{{ old('invited_guests', $event->invited_guests) }}"
-                           class="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-100">
-                </label>
+            </div>
+
+            <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
+                <i class="bi bi-people mr-1 text-red-500"></i>
+                Guest capacity is automatic: single codes count as 1, double codes as 2, and group codes use their encoded capacity.
             </div>
 
             <label class="flex items-center gap-2 text-sm font-extrabold text-slate-700">

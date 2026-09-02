@@ -12,6 +12,7 @@ class EventController extends Controller
     public function index()
     {
         $events = Event::withCount(['activities', 'qrCodes'])
+            ->withSum('qrCodes as guest_count', 'max_admissions')
             ->orderByDesc('start_date')
             ->paginate(15);
 
@@ -41,6 +42,7 @@ class EventController extends Controller
 
         $stats = [
             'qr_count' => $event->qrCodes()->count(),
+            'guest_count' => (int) $event->qrCodes()->sum('max_admissions'),
             'admissions' => (int) $event->scans()->sum('admission_count'),
             'activities' => $event->activities->count(),
             'rejections' => RejectedScan::whereHas('activity', fn ($query) => $query->where('event_id', $event->id))->count(),
@@ -89,7 +91,6 @@ class EventController extends Controller
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'end_time' => ['nullable', 'date_format:H:i'],
-            'invited_guests' => ['nullable', 'integer', 'min:0'],
         ]) + ['is_multi_day' => $request->boolean('is_multi_day')];
     }
 }

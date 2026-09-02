@@ -29,11 +29,12 @@ class DashboardController extends Controller
                 'name' => $event->name,
                 'admissions' => (int) Scan::whereHas('activity', fn ($query) => $query->where('event_id', $event->id))->sum('admission_count'),
                 'qr_codes' => $event->qrCodes()->count(),
+                'guest_count' => (int) $event->qrCodes()->sum('max_admissions'),
             ]);
 
         return view('dashboard', [
             'eventCount' => Event::count(),
-            'guestCount' => QrCode::count(),
+            'guestCount' => (int) QrCode::sum('max_admissions'),
             'userCount' => User::count(),
             'admissionsToday' => (int) Scan::where('created_at', '>=', $today)->sum('admission_count'),
             'admissionsTotal' => (int) Scan::sum('admission_count'),
@@ -66,6 +67,7 @@ class DashboardController extends Controller
     {
         $today = now()->startOfDay();
         $events = Event::withCount(['activities', 'qrCodes', 'assignedUsers'])
+            ->withSum('qrCodes as guest_count', 'max_admissions')
             ->whereDate('start_date', '>=', $today)
             ->orderBy('start_date')
             ->paginate(20);
@@ -74,7 +76,7 @@ class DashboardController extends Controller
             'events' => $events,
             'eventsThisWeek' => Event::whereBetween('start_date', [$today, now()->addDays(7)->endOfDay()])->count(),
             'eventsThisMonth' => Event::whereBetween('start_date', [$today, now()->endOfMonth()])->count(),
-            'guestCapacity' => (int) Event::whereDate('start_date', '>=', $today)->sum('invited_guests'),
+            'guestCapacity' => (int) QrCode::whereHas('event', fn ($query) => $query->whereDate('start_date', '>=', $today))->sum('max_admissions'),
         ]);
     }
 }

@@ -15,6 +15,7 @@ class EventController extends Controller
         $events = $request->user()
             ->visibleEvents()
             ->withCount('qrCodes')
+            ->withSum('qrCodes as guest_count', 'max_admissions')
             ->with(['activities' => fn ($query) => $query
                 ->withCount(['scans', 'rejectedScans'])
                 ->withSum('scans as admissions_sum', 'admission_count')])
@@ -49,7 +50,8 @@ class EventController extends Controller
                     'end_time' => $event->end_time,
                     'opens_at' => $event->opensAt()?->toIso8601String(),
                     'closes_at' => $event->closesAt()?->toIso8601String(),
-                    'invited_guests' => (int) ($event->invited_guests ?? 0),
+                    'invited_guests' => (int) ($event->guest_count ?? 0),
+                    'guest_count' => (int) ($event->guest_count ?? 0),
                     'qr_codes_count' => (int) $event->qr_codes_count,
                     'total_admissions' => (int) $activities->sum('total_admissions'),
                     'total_scans' => (int) $activities->sum('total_scans'),
@@ -118,7 +120,6 @@ class EventController extends Controller
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'end_time' => ['nullable', 'date_format:H:i'],
-            'invited_guests' => ['nullable', 'integer', 'min:0'],
             'activities' => ['sometimes', 'array'],
             'activities.*.name' => ['required_with:activities', 'string', 'max:255'],
             'activities.*.description' => ['nullable', 'string'],
@@ -131,6 +132,7 @@ class EventController extends Controller
     private function serializeEvent(Event $event): array
     {
         $event->loadCount('qrCodes');
+        $event->loadSum('qrCodes as guest_count', 'max_admissions');
         $event->load(['activities' => fn ($query) => $query
             ->withCount(['scans', 'rejectedScans'])
             ->withSum('scans as admissions_sum', 'admission_count')]);
@@ -159,7 +161,8 @@ class EventController extends Controller
             'end_time' => $event->end_time,
             'opens_at' => $event->opensAt()?->toIso8601String(),
             'closes_at' => $event->closesAt()?->toIso8601String(),
-            'invited_guests' => (int) ($event->invited_guests ?? 0),
+            'invited_guests' => (int) ($event->guest_count ?? 0),
+            'guest_count' => (int) ($event->guest_count ?? 0),
             'qr_codes_count' => (int) $event->qr_codes_count,
             'total_admissions' => (int) $activities->sum('total_admissions'),
             'total_scans' => (int) $activities->sum('total_scans'),
